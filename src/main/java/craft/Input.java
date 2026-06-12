@@ -10,6 +10,7 @@ public class Input {
     private final boolean[] mouseButtons = new boolean[8];
     private final ArrayDeque<Integer> keyPresses = new ArrayDeque<>();
     private final ArrayDeque<Integer> mousePresses = new ArrayDeque<>();
+    private final ArrayDeque<Character> charsTyped = new ArrayDeque<>();
 
     private double lastMouseX, lastMouseY;
     private boolean firstMouse = true;
@@ -24,9 +25,14 @@ public class Input {
             if (action == GLFW_PRESS) {
                 keys[key] = true;
                 keyPresses.add(key);
+            } else if (action == GLFW_REPEAT && key == GLFW_KEY_BACKSPACE) {
+                keyPresses.add(key);   // hold-to-delete in text fields
             } else if (action == GLFW_RELEASE) {
                 keys[key] = false;
             }
+        });
+        glfwSetCharCallback(window, (win, codepoint) -> {
+            if (codepoint >= 32 && codepoint < 127) charsTyped.add((char) codepoint);
         });
         glfwSetMouseButtonCallback(window, (win, button, action, mods) -> {
             if (button < 0 || button >= 8) return;
@@ -68,6 +74,16 @@ public class Input {
     public int nextMousePress() {
         Integer b = mousePresses.poll();
         return b == null ? -1 : b;
+    }
+
+    /** Drains one typed character (text fields), or 0 if none. */
+    public char nextChar() {
+        Character c = charsTyped.poll();
+        return c == null ? 0 : c;
+    }
+
+    public void clearTyped() {
+        charsTyped.clear();
     }
 
     public void captureCursor(boolean capture) {

@@ -164,7 +164,7 @@ public class OverlayRenderer {
             int bx = (int) Math.floor(ix), by = (int) Math.floor(iy + 0.2), bz = (int) Math.floor(iz);
             float sky = world.getSky(bx, by, bz) / 15f;
             float blk = world.getBlockLight(bx, by, bz) / 15f;
-            float light = Math.max(0.06f, Math.max(curve(blk), curve(sky) * dayLight));
+            float light = Math.max(craft.Settings.minLight(), Math.max(curve(blk), curve(sky) * dayLight));
 
             float x0 = (float) (ix - rx), z0 = (float) (iz - rz);
             float x1 = (float) (ix + rx), z1 = (float) (iz + rz);

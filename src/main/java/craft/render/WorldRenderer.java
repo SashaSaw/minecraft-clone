@@ -66,11 +66,12 @@ public class WorldRenderer {
             uniform vec3 uFogColor;
             uniform float uFogStart;
             uniform float uFogEnd;
+            uniform float uMinLight;
             void main() {
                 vec4 c = texture(uTex, vUV);
                 if (uCutout == 1 && c.a < 0.5) discard;
                 float l = max(vBlock, vSky * uDayLight);
-                l = max(l, 0.035);
+                l = max(l, uMinLight);
                 vec3 col = c.rgb * l * vShade;
                 float f = clamp((uFogEnd - vDist) / (uFogEnd - uFogStart), 0.0, 1.0);
                 col = mix(uFogColor, col, f);
@@ -237,6 +238,7 @@ public class WorldRenderer {
         shader.setVec3("uFogColor", fogColor[0], fogColor[1], fogColor[2]);
         shader.setFloat("uFogStart", fogStart);
         shader.setFloat("uFogEnd", fogEnd);
+        shader.setFloat("uMinLight", craft.Settings.minLight());
         shader.setInt("uTex", 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, atlasTex);

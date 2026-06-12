@@ -12,9 +12,12 @@ gradle run                 # opens the title screen
 gradle run --args="12345"  # jump straight into a world with this seed
 ```
 
-From the title screen: **Singleplayer** lists your saved worlds (newest first) and
-lets you create a new one; in-game, **Esc** opens the pause menu with Resume and
-Save & Quit to Title.
+From the title screen: **Singleplayer** lists your saved worlds (newest first) with
+rename and delete buttons; **Create New World** lets you name the world and enter an
+optional seed (blank = random). In-game, **Esc** opens the pause menu with Resume,
+Settings, and Save & Quit to Title. **Settings** (on the title and pause screens) has
+sliders for GUI scale (hotbar/hearts/menus size) and brightness, saved to
+settings.properties.
 
 Requires Java 21+. Worlds save to `saves/world-<seed>/` automatically (autosave every
 45 s and on quit); relaunching with the same seed resumes where you left off.

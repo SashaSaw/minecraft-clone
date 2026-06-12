@@ -19,12 +19,60 @@ import java.util.zip.GZIPOutputStream;
  * Unmodified chunks regenerate from the seed. Entities are not persisted.
  */
 public class SaveManager {
-    private static final int LEVEL_VERSION = 1;
+    private static final int LEVEL_VERSION = 2;   // v2 adds the seed to level.dat
     private final File dir;
 
-    public SaveManager(long seed) {
-        dir = new File("saves", "world-" + seed);
+    public SaveManager(File dir) {
+        this.dir = dir;
         dir.mkdirs();
+    }
+
+    public SaveManager(long seed) {
+        this(new File("saves", "world-" + seed));
+    }
+
+    /** Seed stored in a v2 level.dat, else parsed from a "world-<seed>" dir name, else fallback. */
+    public static long readSeed(File worldDir, long fallback) {
+        File level = new File(worldDir, "level.dat");
+        if (level.exists()) {
+            try (DataInputStream in = new DataInputStream(new FileInputStream(level))) {
+                if (in.readInt() >= 2) return in.readLong();
+            } catch (IOException ignored) {
+            }
+        }
+        try {
+            return Long.parseLong(worldDir.getName().substring("world-".length()));
+        } catch (Exception e) {
+            return fallback;
+        }
+    }
+
+    public static String readName(File worldDir) {
+        File f = new File(worldDir, "name.txt");
+        if (!f.exists()) return null;
+        try {
+            String s = new String(java.nio.file.Files.readAllBytes(f.toPath())).trim();
+            return s.isEmpty() ? null : s;
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    public static void writeName(File worldDir, String name) {
+        try {
+            worldDir.mkdirs();
+            java.nio.file.Files.write(new File(worldDir, "name.txt").toPath(), name.getBytes());
+        } catch (IOException e) {
+            System.err.println("Failed to write world name: " + e);
+        }
+    }
+
+    public static void deleteWorld(File worldDir) {
+        File[] files = worldDir.listFiles();
+        if (files != null) {
+            for (File f : files) f.delete();
+        }
+        worldDir.delete();
     }
 
     private File chunkFile(int cx, int cz) {
@@ -80,6 +128,7 @@ public class SaveManager {
         try (DataOutputStream out = new DataOutputStream(
                 new FileOutputStream(new File(dir, "level.dat")))) {
             out.writeInt(LEVEL_VERSION);
+            out.writeLong(world.seed);
             out.writeLong(world.time);
             out.writeInt(spawnX);
             out.writeInt(spawnY);
@@ -119,7 +168,9 @@ public class SaveManager {
         File f = new File(dir, "level.dat");
         if (!f.exists()) return null;
         try (DataInputStream in = new DataInputStream(new FileInputStream(f))) {
-            if (in.readInt() != LEVEL_VERSION) return null;
+            int version = in.readInt();
+            if (version < 1 || version > LEVEL_VERSION) return null;
+            if (version >= 2) in.readLong();   // seed (already known)
             world.time = in.readLong();
             int[] spawn = {in.readInt(), in.readInt(), in.readInt()};
             player.x = in.readDouble();

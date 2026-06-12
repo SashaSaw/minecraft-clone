@@ -19,7 +19,6 @@ import static org.lwjgl.opengl.GL30.*;
  * Quads carry pos2, uv2, rgba — batches flush per texture.
  */
 public class UI {
-    public static final int SCALE = 3;
 
     private static final String VS = """
             #version 330 core
@@ -72,8 +71,8 @@ public class UI {
     }
 
     public void begin(int fbWidth, int fbHeight) {
-        screenW = fbWidth / SCALE;
-        screenH = fbHeight / SCALE;
+        screenW = fbWidth / craft.Settings.guiScale;
+        screenH = fbHeight / craft.Settings.guiScale;
         glDisable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
         glEnable(GL_BLEND);

@@ -96,7 +96,7 @@ public class MobRenderer {
             int bx = (int) Math.floor(ex), by = (int) Math.floor(ey + 0.5), bz = (int) Math.floor(ez);
             float sky = world.getSky(bx, by, bz) / 15f;
             float blk = world.getBlockLight(bx, by, bz) / 15f;
-            light = Math.max(0.05f, Math.max(curve(blk), curve(sky) * dayLight));
+            light = Math.max(craft.Settings.minLight(), Math.max(curve(blk), curve(sky) * dayLight));
 
             float swing = mob.limbSwing * 4.2f;
             float amt = mob.limbSwingAmount;

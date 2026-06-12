@@ -30,6 +30,12 @@ public class World {
     public final List<Chunk> unloadedChunks = new ArrayList<>();
     /** Live entities (item drops, mobs). */
     public final List<craft.entity.Entity> entities = new ArrayList<>();
+    /** The player (set by Game); used by mob AI. */
+    public craft.player.Player player;
+    /** World time in ticks (24000 = one day). */
+    public long time = 1000;
+    /** Chunks decorated this tick — Game spawns passive herds in them. */
+    public final List<Chunk> freshlyDecorated = new ArrayList<>();
     /** Furnace block state by packed position. */
     public final java.util.HashMap<Long, craft.item.FurnaceEntity> furnaces = new java.util.HashMap<>();
 
@@ -207,6 +213,7 @@ public class World {
                 decorator.decorate(this, c);
                 light.initChunk(c);
                 c.state = Chunk.STATE_DECORATED;
+                freshlyDecorated.add(c);
                 for (int sy = 0; sy < Chunk.SECTIONS; sy++) {
                     dirtySections.add(sectionKey(c.cx, sy, c.cz));
                 }

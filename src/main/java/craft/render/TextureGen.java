@@ -44,6 +44,7 @@ public class TextureGen {
         wool();
         cracks();
         icons();
+        mobSkins();
         atlasTex = upload(atlas, Tiles.ATLAS_PX, Tiles.ATLAS_PX);
         sunTex = celestial(0xFFF0A0, 24);
         moonTex = celestial(0xD8D8C8, 18);
@@ -692,6 +693,84 @@ public class TextureGen {
                 px(tile, x, y, mul(0xE8E3DC, 0.9 + r.nextDouble() * 0.18));
             }
         }
+    }
+
+    // ---------- mob skins ----------
+
+    private void mobSkins() {
+        // zombie
+        noiseFill(Tiles.ZOMBIE_SKIN, 0x5B8731, 0.10, rng(Tiles.ZOMBIE_SKIN));
+        noiseFill(Tiles.ZOMBIE_SHIRT, 0x00A8A8, 0.08, rng(Tiles.ZOMBIE_SHIRT));
+        noiseFill(Tiles.ZOMBIE_PANTS, 0x34345E, 0.10, rng(Tiles.ZOMBIE_PANTS));
+        noiseFill(Tiles.ZOMBIE_FACE, 0x5B8731, 0.10, rng(Tiles.ZOMBIE_FACE));
+        eyes(Tiles.ZOMBIE_FACE, 0x101418, 0x101418);
+        for (int x = 6; x <= 9; x++) px(Tiles.ZOMBIE_FACE, x, 11, 0x2A4A18);   // grim mouth
+
+        // pig
+        noiseFill(Tiles.PIG_SKIN, 0xF0A5A2, 0.06, rng(Tiles.PIG_SKIN));
+        noiseFill(Tiles.PIG_FACE, 0xF0A5A2, 0.06, rng(Tiles.PIG_FACE));
+        eyes(Tiles.PIG_FACE, 0xFFFFFF, 0x101418);
+        for (int y = 8; y <= 11; y++) {                                        // snout
+            for (int x = 5; x <= 10; x++) px(Tiles.PIG_FACE, x, y, 0xD8847E);
+        }
+        px(Tiles.PIG_FACE, 6, 9, 0x6E3A36);
+        px(Tiles.PIG_FACE, 6, 10, 0x6E3A36);
+        px(Tiles.PIG_FACE, 9, 9, 0x6E3A36);
+        px(Tiles.PIG_FACE, 9, 10, 0x6E3A36);
+
+        // cow: brown with white patches
+        Random r = rng(Tiles.COW_BODY);
+        noiseFill(Tiles.COW_BODY, 0x43342B, 0.10, r);
+        for (int i = 0; i < 3; i++) {
+            int bx = r.nextInt(10), by = r.nextInt(10);
+            for (int y = by; y < by + 4 + r.nextInt(3); y++) {
+                for (int x = bx; x < bx + 4 + r.nextInt(3); x++) {
+                    if (x < 16 && y < 16) px(Tiles.COW_BODY, x, y, mul(0xE8E3DC, 0.92 + r.nextDouble() * 0.12));
+                }
+            }
+        }
+        noiseFill(Tiles.COW_FACE, 0x43342B, 0.10, rng(Tiles.COW_FACE));
+        for (int y = 7; y < 16; y++) {                                          // white blaze
+            for (int x = 6; x <= 9; x++) px(Tiles.COW_FACE, x, y, 0xE8E3DC);
+        }
+        eyes(Tiles.COW_FACE, 0xFFFFFF, 0x101418);
+        px(Tiles.COW_FACE, 5, 13, 0xD8A0A8);                                    // nose
+        px(Tiles.COW_FACE, 10, 13, 0xD8A0A8);
+        noiseFill(Tiles.COW_LEG, 0x3A2E26, 0.08, rng(Tiles.COW_LEG));
+
+        // sheep
+        Random rs = rng(Tiles.SHEEP_WOOL);
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++) {
+                double f = 0.88 + rs.nextDouble() * 0.18;
+                if ((x + y * 3) % 7 == 0) f *= 0.93;   // curls
+                px(Tiles.SHEEP_WOOL, x, y, mul(0xE8E3DC, f));
+            }
+        }
+        noiseFill(Tiles.SHEEP_FACE, 0xB5917A, 0.08, rng(Tiles.SHEEP_FACE));
+        eyes(Tiles.SHEEP_FACE, 0xFFFFFF, 0x101418);
+        px(Tiles.SHEEP_FACE, 7, 12, 0x8A6E5A);
+        px(Tiles.SHEEP_FACE, 8, 12, 0x8A6E5A);
+        noiseFill(Tiles.SHEEP_LEG, 0xB5917A, 0.08, rng(Tiles.SHEEP_LEG));
+
+        // chicken
+        noiseFill(Tiles.CHICKEN_BODY, 0xE8E8E8, 0.07, rng(Tiles.CHICKEN_BODY));
+        noiseFill(Tiles.CHICKEN_FACE, 0xE8E8E8, 0.07, rng(Tiles.CHICKEN_FACE));
+        px(Tiles.CHICKEN_FACE, 4, 6, 0x101418);
+        px(Tiles.CHICKEN_FACE, 11, 6, 0x101418);
+        noiseFill(Tiles.YELLOW, 0xF2C14E, 0.08, rng(Tiles.YELLOW));
+        noiseFill(Tiles.RED, 0xB02020, 0.08, rng(Tiles.RED));
+    }
+
+    private void eyes(int tile, int white, int pupil) {
+        px(tile, 3, 6, white);
+        px(tile, 4, 6, pupil);
+        px(tile, 11, 6, pupil);
+        px(tile, 12, 6, white);
+        px(tile, 3, 7, white);
+        px(tile, 4, 7, pupil);
+        px(tile, 11, 7, pupil);
+        px(tile, 12, 7, white);
     }
 
     // ---------- standalone textures ----------

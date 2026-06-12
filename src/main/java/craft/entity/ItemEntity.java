@@ -18,6 +18,16 @@ public class ItemEntity extends Entity {
         this.vz = vz;
     }
 
+    /** Spawns a drop with a small random toss. */
+    public static void scatter(World world, double x, double y, double z,
+                               ItemStack stack, java.util.Random rng) {
+        if (stack == null || stack.count <= 0) return;
+        world.entities.add(new ItemEntity(
+                x + (rng.nextDouble() - 0.5) * 0.3, y, z + (rng.nextDouble() - 0.5) * 0.3,
+                stack,
+                (rng.nextDouble() - 0.5) * 0.1, 0.18, (rng.nextDouble() - 0.5) * 0.1));
+    }
+
     @Override
     public void tick(World world) {
         rememberPosition();

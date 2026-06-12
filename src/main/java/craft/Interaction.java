@@ -25,6 +25,11 @@ public class Interaction {
     /** Set when the player right-clicked a container this tick. */
     public byte openContainer;
     public int containerX, containerY, containerZ;
+    private boolean attackQueued;
+
+    public void queueAttack() {
+        attackQueued = true;
+    }
 
     public void tick(World world, Player player, Input input) {
         openContainer = 0;
@@ -35,6 +40,18 @@ public class Interaction {
         target = Raycast.cast(world, player.x, player.y + Player.EYE, player.z, dx, dy, dz, REACH);
 
         if (useCooldown > 0) useCooldown--;
+
+        // melee attack on click (entities take priority over blocks)
+        if (attackQueued) {
+            attackQueued = false;
+            craft.entity.Mob hit = pickMob(world, player, dx, dy, dz);
+            if (hit != null) {
+                ItemStack held = player.inventory.held();
+                int dmg = 1 + (held != null ? held.item().attackDamage : 0);
+                hit.damage(world, dmg, player.x, player.z);
+                player.exhaustion += 0.1f;
+            }
+        }
 
         // breaking
         if (input.isMouseDown(0) && target != null) {
@@ -113,6 +130,44 @@ public class Interaction {
             world.setBlock(px, py, pz, id);
             player.inventory.consumeHeld();
         }
+    }
+
+    private craft.entity.Mob pickMob(World world, Player p, double dx, double dy, double dz) {
+        double ox = p.x, oy = p.y + Player.EYE, oz = p.z;
+        double best = 3.0;
+        craft.entity.Mob hit = null;
+        for (craft.entity.Entity e : world.entities) {
+            if (!(e instanceof craft.entity.Mob m) || m.removed) continue;
+            if (m.distSq(ox, oy, oz) > 5 * 5) continue;
+            double t = rayAabb(ox, oy, oz, dx, dy, dz,
+                    m.x - m.width / 2 - 0.1, m.y - 0.1, m.z - m.width / 2 - 0.1,
+                    m.x + m.width / 2 + 0.1, m.y + m.height + 0.1, m.z + m.width / 2 + 0.1);
+            if (t >= 0 && t < best) {
+                best = t;
+                hit = m;
+            }
+        }
+        return hit;
+    }
+
+    private static double rayAabb(double ox, double oy, double oz, double dx, double dy, double dz,
+                                  double minX, double minY, double minZ,
+                                  double maxX, double maxY, double maxZ) {
+        double tMin = 0, tMax = Double.MAX_VALUE;
+        double[] o = {ox, oy, oz}, d = {dx, dy, dz};
+        double[] lo = {minX, minY, minZ}, hi = {maxX, maxY, maxZ};
+        for (int i = 0; i < 3; i++) {
+            if (Math.abs(d[i]) < 1e-9) {
+                if (o[i] < lo[i] || o[i] > hi[i]) return -1;
+            } else {
+                double t1 = (lo[i] - o[i]) / d[i];
+                double t2 = (hi[i] - o[i]) / d[i];
+                tMin = Math.max(tMin, Math.min(t1, t2));
+                tMax = Math.min(tMax, Math.max(t1, t2));
+                if (tMin > tMax) return -1;
+            }
+        }
+        return tMin;
     }
 
     private boolean intersectsPlayer(Player p, int bx, int by, int bz) {

@@ -71,6 +71,24 @@ public final class Tiles {
     public static final int ICON_HUNGER_EMPTY = 76;
     public static final int ICON_BUBBLE = 77;
 
+    // mob skins
+    public static final int ZOMBIE_FACE = 80;
+    public static final int ZOMBIE_SKIN = 81;
+    public static final int ZOMBIE_SHIRT = 82;
+    public static final int ZOMBIE_PANTS = 83;
+    public static final int PIG_SKIN = 84;
+    public static final int PIG_FACE = 85;
+    public static final int COW_BODY = 86;
+    public static final int COW_FACE = 87;
+    public static final int COW_LEG = 88;
+    public static final int SHEEP_WOOL = 89;
+    public static final int SHEEP_FACE = 90;
+    public static final int SHEEP_LEG = 91;
+    public static final int CHICKEN_BODY = 92;
+    public static final int CHICKEN_FACE = 93;
+    public static final int YELLOW = 94;
+    public static final int RED = 95;
+
     public static final int ATLAS_TILES = 16;     // tiles per row
     public static final int TILE_PX = 16;
     public static final int ATLAS_PX = ATLAS_TILES * TILE_PX;

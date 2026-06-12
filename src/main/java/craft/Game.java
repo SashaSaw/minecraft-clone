@@ -36,13 +36,14 @@ public class Game {
     private Sky sky;
     private Player player;
     private Interaction interaction;
+    private craft.render.MobRenderer mobRenderer;
+    private craft.entity.MobSpawner spawner;
     private UI ui;
     private Hud hud;
     private Screen screen;
     private ExecutorService pool;
 
     private int renderDist = 8;
-    private long worldTime = Long.getLong("craft.time", 1000);
     private float fovBoost;
     private boolean showDebug;
     private boolean wasDead;
@@ -76,12 +77,15 @@ public class Game {
         });
 
         world = new World(seed, pool);
+        world.time = Long.getLong("craft.time", 1000);
         renderer = new WorldRenderer(world, pool, textures.atlasTex);
         overlays = new OverlayRenderer(textures.atlasTex);
         sky = new Sky(textures.sunTex, textures.moonTex);
         ui = new UI(textures.atlasTex);
         hud = new Hud();
         interaction = new Interaction();
+        mobRenderer = new craft.render.MobRenderer(textures.atlasTex);
+        spawner = new craft.entity.MobSpawner();
 
         int[] spawn = findSpawn();
         String posProp = System.getProperty("craft.pos");
@@ -92,7 +96,7 @@ public class Game {
         spawnX = spawn[0];
         spawnY = spawn[1];
         spawnZ = spawn[2];
-        player = new Player(spawnX + 0.5, spawnY + 1, spawnZ + 0.5);
+        player = world.player = new Player(spawnX + 0.5, spawnY + 1, spawnZ + 0.5);
         player.yaw = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.yaw", "0")));
         player.pitch = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.pitch", "0")));
         System.out.println("Seed: " + seed + "  Spawn: " + spawnX + "," + spawnY + "," + spawnZ);
@@ -166,6 +170,9 @@ public class Game {
         int pcz = (int) Math.floor(player.z) >> 4;
         world.update(pcx, pcz, renderDist);
         world.tickBlockEntities();
+        for (Chunk fc : world.freshlyDecorated) spawner.spawnHerd(world, fc, world.seed);
+        world.freshlyDecorated.clear();
+        spawner.tickHostile(world);
 
         Chunk c = world.getChunk(pcx, pcz);
         boolean ready = c != null && c.state >= Chunk.STATE_DECORATED;
@@ -189,7 +196,7 @@ public class Game {
             tickEntities();
         }
 
-        worldTime++;
+        world.time++;
     }
 
     private int demoTicks;
@@ -208,7 +215,15 @@ public class Game {
 
         int bx = (int) Math.floor(player.x), bz = (int) Math.floor(player.z);
         int ground = world.surfaceY(bx, bz + 3);
-        if ("world".equals(System.getProperty("craft.demo"))) {
+        if ("mobs".equals(System.getProperty("craft.demo"))) {
+            double my = world.surfaceY(bx, bz + 6) + 1;
+            world.entities.add(new craft.entity.Zombie(bx - 6 + 0.5,
+                    world.surfaceY(bx - 6, bz + 13) + 1, bz + 13 + 0.5));
+            world.entities.add(new craft.entity.Animals.Cow(bx - 2 + 0.5, my, bz + 6 + 0.5));
+            world.entities.add(new craft.entity.Animals.Sheep(bx + 0.5, my, bz + 6 + 0.5));
+            world.entities.add(new craft.entity.Animals.Pig(bx + 2 + 0.5, my, bz + 6 + 0.5));
+            world.entities.add(new craft.entity.Animals.Chicken(bx + 4 + 0.5, my, bz + 6 + 0.5));
+        } else if ("world".equals(System.getProperty("craft.demo"))) {
             // break a few blocks (drops fly out)
             for (int dx = -1; dx <= 1; dx++) {
                 interaction.breakBlock(world, player, bx + dx, ground, bz + 3);
@@ -263,6 +278,8 @@ public class Game {
             if (player.dead) {
                 player.respawn(spawnX, spawnY, spawnZ);
                 wasDead = false;
+            } else if (screen == null && btn == 0 && (input.isCursorCaptured() || autopilot)) {
+                interaction.queueAttack();
             } else if (screen != null) {
                 boolean shift = input.isDown(GLFW_KEY_LEFT_SHIFT) || input.isDown(GLFW_KEY_RIGHT_SHIFT);
                 screen.click(ui, mouseUiX(), mouseUiY(), btn, shift);
@@ -376,7 +393,7 @@ public class Game {
             fogStart = 2;
             fogEnd = 24;
         } else {
-            fogColor = Sky.horizonColor(worldTime);
+            fogColor = Sky.horizonColor(world.time);
             fogEnd = renderDist * 16;
             fogStart = fogEnd * 0.7f;
         }
@@ -384,16 +401,17 @@ public class Game {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         if (!underwater) {
-            sky.render(proj, viewRot, worldTime);
+            sky.render(proj, viewRot, world.time);
         }
 
         int pcx = (int) Math.floor(player.x) >> 4;
         int pcz = (int) Math.floor(player.z) >> 4;
         renderer.update(pcx, pcz, renderDist);
-        float dayLight = Sky.dayLight(worldTime);
+        float dayLight = Sky.dayLight(world.time);
         renderer.renderSolid(proj, view, camPos, dayLight, fogColor, fogStart, fogEnd);
 
         overlays.renderItems(renderer.pv(), world, world.entities, dayLight, partial, camPos);
+        mobRenderer.render(renderer.pv(), world, world.entities, dayLight, partial, camPos);
         if (screen == null && !player.dead && interaction.target != null) {
             overlays.renderSelection(renderer.pv(), interaction.target.x, interaction.target.y, interaction.target.z);
             if (interaction.breakProgress > 0) {
@@ -407,7 +425,7 @@ public class Game {
         // 2D overlay
         ui.begin(window.fbWidth, window.fbHeight);
         String debug = showDebug ? String.format("XYZ %.1f / %.1f / %.1f  FPS %d  T %d  C %d",
-                player.x, player.y, player.z, fps, worldTime % Sky.DAY_TICKS, world.loadedChunkCount()) : null;
+                player.x, player.y, player.z, fps, world.time % Sky.DAY_TICKS, world.loadedChunkCount()) : null;
         hud.render(ui, player, debug);
         if (screen != null) {
             if (screen instanceof Screen.FurnaceScreen fs) fs.sync();

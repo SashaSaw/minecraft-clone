@@ -110,15 +110,24 @@ public class UI {
     }
 
     public void text(String s, float x, float y, float r, float g, float b) {
-        textRaw(s, x + 1, y + 1, 0.16f, 0.16f, 0.16f, 1);   // shadow
-        textRaw(s, x, y, r, g, b, 1);
+        textScaled(s, x, y, 1, r, g, b);
+    }
+
+    public void textScaled(String s, float x, float y, float scale, float r, float g, float b) {
+        float off = Math.max(1, scale * 0.4f);
+        textRaw(s, x + off, y + off, scale, 0.16f, 0.16f, 0.16f, 1);   // shadow
+        textRaw(s, x, y, scale, r, g, b, 1);
     }
 
     public void textCentered(String s, float cx, float y, float r, float g, float b) {
         text(s, cx - Font.width(s) / 2f, y, r, g, b);
     }
 
-    private void textRaw(String s, float x, float y, float r, float g, float b, float a) {
+    public void textCenteredScaled(String s, float cx, float y, float scale, float r, float g, float b) {
+        textScaled(s, cx - Font.width(s) * scale / 2f, y, scale, r, g, b);
+    }
+
+    private void textRaw(String s, float x, float y, float scale, float r, float g, float b, float a) {
         float cell = 8f / 128f;
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
@@ -126,7 +135,8 @@ public class UI {
                 int gi = font.glyph(c);
                 if (gi >= 0) {
                     float u0 = (gi % 16) * cell, v0 = (gi / 16) * cell;
-                    pushQuad(x + i * Font.GLYPH_W, y, 8, 8, u0, v0, u0 + cell, v0 + cell, r, g, b, a);
+                    pushQuad(x + i * Font.GLYPH_W * scale, y, 8 * scale, 8 * scale,
+                            u0, v0, u0 + cell, v0 + cell, r, g, b, a);
                 }
             }
         }

@@ -282,6 +282,14 @@ public class WorldRenderer {
         glDrawArrays(GL_TRIANGLES, 0, s.count[layer]);
     }
 
+    /** Frees all GL resources (when leaving a world). */
+    public void dispose() {
+        for (Section s : sections.values()) free(s);
+        sections.clear();
+        inFlight.clear();
+        uploads.clear();
+    }
+
     public int sectionCount() {
         return sections.size();
     }

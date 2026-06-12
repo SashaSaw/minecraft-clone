@@ -2,21 +2,30 @@ package craft;
 
 import craft.entity.Entity;
 import craft.entity.ItemEntity;
+import craft.entity.MobSpawner;
 import craft.player.Player;
+import craft.render.MobRenderer;
 import craft.render.OverlayRenderer;
 import craft.render.Sky;
 import craft.render.TextureGen;
+import craft.render.Tiles;
 import craft.render.WorldRenderer;
 import craft.ui.Hud;
 import craft.ui.Screen;
 import craft.ui.UI;
 import craft.world.Block;
 import craft.world.Chunk;
+import craft.world.SaveManager;
 import craft.world.World;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -27,28 +36,38 @@ public class Game {
     private static final double TICK = 1.0 / 20.0;
     private static final float BASE_FOV = 70f;
 
-    private final long seed;
+    private enum State {TITLE, WORLDS, PLAYING}
+
+    private final Long initialSeed;
     private Window window;
     private Input input;
-    private World world;
-    private WorldRenderer renderer;
-    private OverlayRenderer overlays;
+    private ExecutorService pool;
+    private int atlasTex;
+
+    // world-independent
     private Sky sky;
-    private Player player;
-    private Interaction interaction;
-    private craft.render.MobRenderer mobRenderer;
-    private craft.entity.MobSpawner spawner;
+    private OverlayRenderer overlays;
+    private MobRenderer mobRenderer;
     private UI ui;
     private Hud hud;
-    private Screen screen;
-    private ExecutorService pool;
 
+    // per-world (null outside PLAYING)
+    private World world;
+    private WorldRenderer renderer;
+    private Player player;
+    private Interaction interaction;
+    private MobSpawner spawner;
+    private Screen screen;
+
+    private State state = State.TITLE;
+    private boolean paused;
     private int renderDist = 8;
     private float fovBoost;
     private boolean showDebug;
     private boolean wasDead;
     private int spawnX, spawnY, spawnZ;
     private int fps;
+    private int demoTicks;
 
     private final Matrix4f proj = new Matrix4f();
     private final Matrix4f view = new Matrix4f();
@@ -57,17 +76,17 @@ public class Game {
 
     private final boolean autopilot = System.getProperty("craft.shot") != null;
 
-    public Game(long seed) {
-        this.seed = seed;
+    public Game(Long initialSeed) {
+        this.initialSeed = initialSeed;
     }
 
     public void run() {
         window = new Window(1280, 760, "Craft");
         input = new Input(window.handle);
-        if (!autopilot) input.captureCursor(true);
 
         TextureGen textures = new TextureGen();
         textures.buildAll();
+        atlasTex = textures.atlasTex;
 
         int threads = Math.max(2, Runtime.getRuntime().availableProcessors() - 2);
         pool = Executors.newFixedThreadPool(threads, r -> {
@@ -76,42 +95,17 @@ public class Game {
             return t;
         });
 
-        world = new World(seed, pool);
-        world.time = Long.getLong("craft.time", 1000);
-        renderer = new WorldRenderer(world, pool, textures.atlasTex);
-        overlays = new OverlayRenderer(textures.atlasTex);
         sky = new Sky(textures.sunTex, textures.moonTex);
-        ui = new UI(textures.atlasTex);
+        overlays = new OverlayRenderer(atlasTex);
+        mobRenderer = new MobRenderer(atlasTex);
+        ui = new UI(atlasTex);
         hud = new Hud();
-        interaction = new Interaction();
-        mobRenderer = new craft.render.MobRenderer(textures.atlasTex);
-        spawner = new craft.entity.MobSpawner();
 
-        int[] spawn = findSpawn();
-        String posProp = System.getProperty("craft.pos");
-        if (posProp != null) {
-            String[] p = posProp.split(",");
-            spawn = new int[]{Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2])};
+        if (initialSeed != null) {
+            startWorld(initialSeed);
+        } else if ("worlds".equals(System.getProperty("craft.menu"))) {
+            state = State.WORLDS;
         }
-        spawnX = spawn[0];
-        spawnY = spawn[1];
-        spawnZ = spawn[2];
-        player = world.player = new Player(spawnX + 0.5, spawnY + 1, spawnZ + 0.5);
-        player.yaw = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.yaw", "0")));
-        player.pitch = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.pitch", "0")));
-
-        // persistence (disabled in screenshot/demo runs)
-        if (!autopilot) {
-            world.save = new craft.world.SaveManager(seed);
-            int[] savedSpawn = world.save.loadLevel(world, player);
-            if (savedSpawn != null) {
-                spawnX = savedSpawn[0];
-                spawnY = savedSpawn[1];
-                spawnZ = savedSpawn[2];
-                System.out.println("Loaded saved world");
-            }
-        }
-        System.out.println("Seed: " + seed + "  Spawn: " + spawnX + "," + spawnY + "," + spawnZ);
 
         double prev = glfwGetTime();
         double acc = 0;
@@ -129,9 +123,15 @@ public class Game {
             prev = now;
             if (exitAfter > 0 && now - start >= exitAfter) break;
 
-            while (acc >= TICK) {
-                tick();
-                acc -= TICK;
+            handleEvents();
+
+            if (state == State.PLAYING && !paused) {
+                while (acc >= TICK) {
+                    tickWorld();
+                    acc -= TICK;
+                }
+            } else {
+                acc = 0;
             }
             render((float) (acc / TICK));
 
@@ -147,19 +147,80 @@ public class Game {
                 fps = frames;
                 frames = 0;
                 fpsTimer = now;
-                window.setTitle(String.format("Craft | %d fps | %d chunks", fps, world.loadedChunkCount()));
-                if (autopilot) System.out.println("fps=" + fps + " chunks=" + world.loadedChunkCount()
-                        + " sections=" + renderer.sectionCount() + " entities=" + world.entities.size());
+                window.setTitle("Craft | " + fps + " fps");
+                if (autopilot && world != null) {
+                    System.out.println("fps=" + fps + " chunks=" + world.loadedChunkCount()
+                            + " sections=" + renderer.sectionCount() + " entities=" + world.entities.size());
+                }
             }
         }
 
-        if (world.save != null) {
+        saveWorld();
+        pool.shutdownNow();
+        window.destroy();
+    }
+
+    // ------------------------------------------------------------------ world lifecycle
+
+    private void startWorld(long seed) {
+        world = new World(seed, pool);
+        world.time = Long.getLong("craft.time", 1000);
+        renderer = new WorldRenderer(world, pool, atlasTex);
+        interaction = new Interaction();
+        spawner = new MobSpawner();
+        screen = null;
+        paused = false;
+        wasDead = false;
+        demoTicks = 0;
+
+        int[] spawn = findSpawn();
+        String posProp = System.getProperty("craft.pos");
+        if (posProp != null) {
+            String[] p = posProp.split(",");
+            spawn = new int[]{Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2])};
+        }
+        spawnX = spawn[0];
+        spawnY = spawn[1];
+        spawnZ = spawn[2];
+        player = world.player = new Player(spawnX + 0.5, spawnY + 1, spawnZ + 0.5);
+        player.yaw = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.yaw", "0")));
+        player.pitch = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.pitch", "0")));
+
+        if (!autopilot) {
+            world.save = new SaveManager(seed);
+            int[] savedSpawn = world.save.loadLevel(world, player);
+            if (savedSpawn != null) {
+                spawnX = savedSpawn[0];
+                spawnY = savedSpawn[1];
+                spawnZ = savedSpawn[2];
+                System.out.println("Loaded saved world");
+            }
+            input.captureCursor(true);
+        }
+        System.out.println("Seed: " + seed + "  Spawn: " + spawnX + "," + spawnY + "," + spawnZ);
+        state = State.PLAYING;
+    }
+
+    private void saveWorld() {
+        if (world != null && world.save != null) {
             world.saveModifiedChunks();
             world.save.saveLevel(world, player, spawnX, spawnY, spawnZ);
             System.out.println("World saved");
         }
-        pool.shutdownNow();
-        window.destroy();
+    }
+
+    private void quitToTitle() {
+        closeScreen();
+        saveWorld();
+        renderer.dispose();
+        world = null;
+        renderer = null;
+        player = null;
+        interaction = null;
+        spawner = null;
+        paused = false;
+        state = State.TITLE;
+        input.captureCursor(false);
     }
 
     /** Nearest land column to the origin (pure noise query, no chunks needed). */
@@ -180,11 +241,170 @@ public class Game {
         return new int[]{0, 80, 0};
     }
 
+    // ------------------------------------------------------------------ menus
+
+    private record MenuButton(String id, String label, float x, float y, float w, float h, boolean enabled) {
+    }
+
+    private record WorldEntry(long seed, long mtime) {
+    }
+
+    private List<WorldEntry> listWorlds() {
+        List<WorldEntry> out = new ArrayList<>();
+        File[] dirs = new File("saves").listFiles();
+        if (dirs != null) {
+            for (File d : dirs) {
+                if (!d.getName().startsWith("world-")) continue;
+                File level = new File(d, "level.dat");
+                if (!level.exists()) continue;
+                try {
+                    out.add(new WorldEntry(Long.parseLong(d.getName().substring(6)), level.lastModified()));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        out.sort((a, b) -> Long.compare(b.mtime, a.mtime));
+        return out.size() > 7 ? out.subList(0, 7) : out;
+    }
+
+    private List<MenuButton> currentButtons() {
+        List<MenuButton> btns = new ArrayList<>();
+        float cx = ui.screenW / 2f;
+        float w = 220, h = 22;
+        if (state == State.TITLE) {
+            float y = ui.screenH / 2f - 10;
+            btns.add(new MenuButton("play", "SINGLEPLAYER", cx - w / 2, y, w, h, true));
+            btns.add(new MenuButton("quit", "QUIT GAME", cx - w / 2, y + 30, w, h, true));
+        } else if (state == State.WORLDS) {
+            float y = 60;
+            SimpleDateFormat fmt = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+            for (WorldEntry e : listWorlds()) {
+                btns.add(new MenuButton("world:" + e.seed,
+                        "WORLD " + e.seed + "  (" + fmt.format(new Date(e.mtime)) + ")",
+                        cx - w / 2 - 40, y, w + 80, h, true));
+                y += 27;
+            }
+            y += 12;
+            btns.add(new MenuButton("new", "CREATE NEW WORLD", cx - w / 2, y, w, h, true));
+            btns.add(new MenuButton("back", "BACK", cx - w / 2, y + 30, w, h, true));
+        } else if (state == State.PLAYING && paused) {
+            float y = ui.screenH / 2f - 35;
+            btns.add(new MenuButton("resume", "BACK TO GAME", cx - w / 2, y, w, h, true));
+            btns.add(new MenuButton("settings", "SETTINGS (COMING SOON)", cx - w / 2, y + 30, w, h, false));
+            btns.add(new MenuButton("savequit", "SAVE AND QUIT TO TITLE", cx - w / 2, y + 60, w, h, true));
+        }
+        return btns;
+    }
+
+    private void performAction(String id) {
+        switch (id) {
+            case "play" -> state = State.WORLDS;
+            case "quit" -> glfwSetWindowShouldClose(window.handle, true);
+            case "back" -> state = State.TITLE;
+            case "new" -> startWorld(System.nanoTime() & 0xFFFFFFFFL);
+            case "resume" -> setPaused(false);
+            case "savequit" -> quitToTitle();
+            default -> {
+                if (id.startsWith("world:")) startWorld(Long.parseLong(id.substring(6)));
+            }
+        }
+    }
+
+    private void setPaused(boolean p) {
+        paused = p;
+        if (!autopilot) input.captureCursor(!p);
+    }
+
+    private void drawMenuButtons(List<MenuButton> btns, int mx, int my) {
+        for (MenuButton b : btns) {
+            boolean hover = b.enabled && mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h;
+            ui.rect(b.x - 1, b.y - 1, b.w + 2, b.h + 2, 0.05f, 0.05f, 0.05f, 0.9f);
+            if (hover) ui.rect(b.x, b.y, b.w, b.h, 0.45f, 0.45f, 0.6f, 0.95f);
+            else ui.rect(b.x, b.y, b.w, b.h, 0.28f, 0.28f, 0.28f, 0.95f);
+            float c = b.enabled ? 1f : 0.55f;
+            ui.textCentered(b.label, b.x + b.w / 2, b.y + (b.h - 8) / 2, c, c, hover ? 0.7f : c);
+        }
+    }
+
+    private void menuClick() {
+        int mx = mouseUiX(), my = mouseUiY();
+        for (MenuButton b : currentButtons()) {
+            if (b.enabled && mx >= b.x && mx < b.x + b.w && my >= b.y && my < b.y + b.h) {
+                performAction(b.id);
+                return;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ events
+
+    private void handleEvents() {
+        if (state == State.PLAYING && !paused) {
+            playingEvents();
+            return;
+        }
+        // menus and pause screen
+        int key;
+        while ((key = input.nextKeyPress()) != -1) {
+            if (key == GLFW_KEY_ESCAPE) {
+                if (state == State.WORLDS) state = State.TITLE;
+                else if (state == State.PLAYING && paused) setPaused(false);
+            }
+        }
+        int btn;
+        while ((btn = input.nextMousePress()) != -1) {
+            if (btn == 0) menuClick();
+        }
+        input.consumeMouseDelta();
+        input.consumeScroll();
+    }
+
+    private void playingEvents() {
+        int key;
+        while ((key = input.nextKeyPress()) != -1) {
+            if (key == GLFW_KEY_ESCAPE) {
+                if (screen != null) closeScreen();
+                else setPaused(true);
+            } else if (key == GLFW_KEY_E) {
+                if (screen != null) closeScreen();
+                else if (!player.dead) openScreen(new Screen.InventoryScreen(player.inventory));
+            } else if (key == GLFW_KEY_W) {
+                player.onKeyPress(key);
+            } else if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9) {
+                player.inventory.selected = key - GLFW_KEY_1;
+            } else if (key == GLFW_KEY_F3) {
+                showDebug = !showDebug;
+            } else if (key == GLFW_KEY_F2) {
+                craft.util.Screenshot.capture(window.fbWidth, window.fbHeight,
+                        "screenshot-" + System.currentTimeMillis() + ".png");
+            } else if (key == GLFW_KEY_Q && screen == null && !player.dead) {
+                dropHeldItem();
+            }
+        }
+
+        double scroll = input.consumeScroll();
+        if (scroll != 0 && screen == null) {
+            int sel = player.inventory.selected - (int) Math.signum(scroll);
+            player.inventory.selected = ((sel % 9) + 9) % 9;
+        }
+
+        int btn;
+        while ((btn = input.nextMousePress()) != -1) {
+            if (player.dead) {
+                player.respawn(spawnX, spawnY, spawnZ);
+                wasDead = false;
+            } else if (screen == null && btn == 0 && (input.isCursorCaptured() || autopilot)) {
+                interaction.queueAttack();
+            } else if (screen != null) {
+                boolean shift = input.isDown(GLFW_KEY_LEFT_SHIFT) || input.isDown(GLFW_KEY_RIGHT_SHIFT);
+                screen.click(ui, mouseUiX(), mouseUiY(), btn, shift);
+            }
+        }
+    }
+
     // ------------------------------------------------------------------ tick
 
-    private void tick() {
-        handleInput();
-
+    private void tickWorld() {
         int pcx = (int) Math.floor(player.x) >> 4;
         int pcz = (int) Math.floor(player.z) >> 4;
         world.update(pcx, pcz, renderDist);
@@ -224,9 +444,7 @@ public class Game {
         world.time++;
     }
 
-    private int demoTicks;
-
-    /** Scripted actions for screenshot verification (-Dcraft.demo=world|screen). */
+    /** Scripted actions for screenshot verification (-Dcraft.demo=world|screen|mobs). */
     private void demoTick() {
         demoTicks++;
         if (demoTicks != 40) return;
@@ -240,7 +458,9 @@ public class Game {
 
         int bx = (int) Math.floor(player.x), bz = (int) Math.floor(player.z);
         int ground = world.surfaceY(bx, bz + 3);
-        if ("mobs".equals(System.getProperty("craft.demo"))) {
+        if ("pause".equals(System.getProperty("craft.demo"))) {
+            setPaused(true);
+        } else if ("mobs".equals(System.getProperty("craft.demo"))) {
             double my = world.surfaceY(bx, bz + 6) + 1;
             world.entities.add(new craft.entity.Zombie(bx - 6 + 0.5,
                     world.surfaceY(bx - 6, bz + 13) + 1, bz + 13 + 0.5));
@@ -249,11 +469,9 @@ public class Game {
             world.entities.add(new craft.entity.Animals.Pig(bx + 2 + 0.5, my, bz + 6 + 0.5));
             world.entities.add(new craft.entity.Animals.Chicken(bx + 4 + 0.5, my, bz + 6 + 0.5));
         } else if ("world".equals(System.getProperty("craft.demo"))) {
-            // break a few blocks (drops fly out)
             for (int dx = -1; dx <= 1; dx++) {
                 interaction.breakBlock(world, player, bx + dx, ground, bz + 3);
             }
-            // small wall: cobble base, glass top, torches
             for (int dx = -2; dx <= 2; dx++) {
                 world.setBlock(bx + dx, ground + 1, bz + 6, Block.COBBLESTONE);
                 world.setBlock(bx + dx, ground + 2, bz + 6, Block.GLASS);
@@ -264,51 +482,7 @@ public class Game {
             world.setBlock(bx + 3, ground + 1, bz + 3, Block.CRAFTING_TABLE);
             world.setBlock(bx - 3, ground + 1, bz + 3, Block.FURNACE_LIT);
         } else {
-            Screen.InventoryScreen s = new Screen.InventoryScreen(inv);
-            openScreen(s);
-        }
-    }
-
-    private void handleInput() {
-        int key;
-        while ((key = input.nextKeyPress()) != -1) {
-            if (key == GLFW_KEY_ESCAPE) {
-                if (screen != null) closeScreen();
-                else if (!autopilot) input.captureCursor(!input.isCursorCaptured());
-            } else if (key == GLFW_KEY_E) {
-                if (screen != null) closeScreen();
-                else if (!player.dead) openScreen(new Screen.InventoryScreen(player.inventory));
-            } else if (key == GLFW_KEY_W) {
-                player.onKeyPress(key);
-            } else if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9) {
-                player.inventory.selected = key - GLFW_KEY_1;
-            } else if (key == GLFW_KEY_F3) {
-                showDebug = !showDebug;
-            } else if (key == GLFW_KEY_F2) {
-                craft.util.Screenshot.capture(window.fbWidth, window.fbHeight,
-                        "screenshot-" + System.currentTimeMillis() + ".png");
-            } else if (key == GLFW_KEY_Q && screen == null && !player.dead) {
-                dropHeldItem();
-            }
-        }
-
-        double scroll = input.consumeScroll();
-        if (scroll != 0 && screen == null) {
-            int sel = player.inventory.selected - (int) Math.signum(scroll);
-            player.inventory.selected = ((sel % 9) + 9) % 9;
-        }
-
-        int btn;
-        while ((btn = input.nextMousePress()) != -1) {
-            if (player.dead) {
-                player.respawn(spawnX, spawnY, spawnZ);
-                wasDead = false;
-            } else if (screen == null && btn == 0 && (input.isCursorCaptured() || autopilot)) {
-                interaction.queueAttack();
-            } else if (screen != null) {
-                boolean shift = input.isDown(GLFW_KEY_LEFT_SHIFT) || input.isDown(GLFW_KEY_RIGHT_SHIFT);
-                screen.click(ui, mouseUiX(), mouseUiY(), btn, shift);
-            }
+            openScreen(new Screen.InventoryScreen(inv));
         }
     }
 
@@ -383,8 +557,41 @@ public class Game {
             glViewport(0, 0, window.fbWidth, window.fbHeight);
             window.resized = false;
         }
+        if (state == State.PLAYING) {
+            renderWorld(partial);
+        } else {
+            renderMenu();
+        }
+    }
 
-        if (input.isCursorCaptured() && screen == null) {
+    private void renderMenu() {
+        glClearColor(0.08f, 0.07f, 0.07f, 1);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        ui.begin(window.fbWidth, window.fbHeight);
+
+        // tiled, darkened dirt backdrop
+        for (int y = 0; y < ui.screenH + 32; y += 32) {
+            for (int x = 0; x < ui.screenW + 32; x += 32) {
+                ui.tile(Tiles.DIRT, x, y, 32, 32, 0.35f, 0.35f, 0.35f, 1f);
+            }
+        }
+
+        float cx = ui.screenW / 2f;
+        if (state == State.TITLE) {
+            ui.textCenteredScaled("CRAFT", cx, ui.screenH * 0.22f, 6, 1f, 1f, 1f);
+            ui.textCentered("A MINECRAFT-STYLE VOXEL WORLD", cx, ui.screenH * 0.22f + 54, 0.8f, 0.8f, 0.8f);
+        } else if (state == State.WORLDS) {
+            ui.textCenteredScaled("SELECT WORLD", cx, 24, 2, 1f, 1f, 1f);
+            if (listWorlds().isEmpty()) {
+                ui.textCentered("NO WORLDS YET - CREATE ONE!", cx, 70, 0.75f, 0.75f, 0.75f);
+            }
+        }
+        drawMenuButtons(currentButtons(), mouseUiX(), mouseUiY());
+        ui.end();
+    }
+
+    private void renderWorld(float partial) {
+        if (input.isCursorCaptured() && screen == null && !paused) {
             double[] d = input.consumeMouseDelta();
             player.turn(d[0], d[1], 0.0025);
         } else {
@@ -437,7 +644,7 @@ public class Game {
 
         overlays.renderItems(renderer.pv(), world, world.entities, dayLight, partial, camPos);
         mobRenderer.render(renderer.pv(), world, world.entities, dayLight, partial, camPos);
-        if (screen == null && !player.dead && interaction.target != null) {
+        if (screen == null && !paused && !player.dead && interaction.target != null) {
             overlays.renderSelection(renderer.pv(), interaction.target.x, interaction.target.y, interaction.target.z);
             if (interaction.breakProgress > 0) {
                 overlays.renderCrack(renderer.pv(), interaction.target.x, interaction.target.y,
@@ -456,6 +663,11 @@ public class Game {
             if (screen instanceof Screen.FurnaceScreen fs) fs.sync();
             ui.rect(0, 0, ui.screenW, ui.screenH, 0, 0, 0, 0.45f);
             screen.render(ui, mouseUiX(), mouseUiY());
+        }
+        if (paused) {
+            ui.rect(0, 0, ui.screenW, ui.screenH, 0, 0, 0, 0.55f);
+            ui.textCenteredScaled("GAME PAUSED", ui.screenW / 2f, ui.screenH / 2f - 70, 2, 1, 1, 1);
+            drawMenuButtons(currentButtons(), mouseUiX(), mouseUiY());
         }
         ui.end();
     }

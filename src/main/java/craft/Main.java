@@ -2,7 +2,12 @@ package craft;
 
 public class Main {
     public static void main(String[] args) {
-        long seed = args.length > 0 ? parseSeed(args[0]) : System.nanoTime();
+        Long seed = null;
+        if (args.length > 0) {
+            seed = parseSeed(args[0]);
+        } else if (System.getProperty("craft.shot") != null && System.getProperty("craft.menu") == null) {
+            seed = System.nanoTime();   // autopilot runs skip the menus unless craft.menu is set
+        }
         new Game(seed).run();
     }
 

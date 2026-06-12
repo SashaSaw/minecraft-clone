@@ -8,9 +8,13 @@ procedurally in code at startup — there are no image assets.**
 ## Run
 
 ```bash
-gradle run                 # random seed
-gradle run --args="12345"  # fixed seed
+gradle run                 # opens the title screen
+gradle run --args="12345"  # jump straight into a world with this seed
 ```
+
+From the title screen: **Singleplayer** lists your saved worlds (newest first) and
+lets you create a new one; in-game, **Esc** opens the pause menu with Resume and
+Save & Quit to Title.
 
 Requires Java 21+. Worlds save to `saves/world-<seed>/` automatically (autosave every
 45 s and on quit); relaunching with the same seed resumes where you left off.
@@ -31,7 +35,7 @@ Requires Java 21+. Worlds save to `saves/world-<seed>/` automatically (autosave 
 | Q | Drop one item |
 | F2 | Screenshot |
 | F3 | Debug overlay |
-| Esc | Pause / release mouse |
+| Esc | Pause menu (Resume / Save & Quit to Title) |
 
 ## What's implemented
 

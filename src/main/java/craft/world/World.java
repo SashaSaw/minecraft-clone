@@ -19,6 +19,7 @@ public class World {
     private final Decorator decorator;
     public final LightEngine light;
     private final ExecutorService genPool;
+    public SaveManager save;   // optional persistence (set by Game)
 
     private final ConcurrentHashMap<Long, Chunk> chunks = new ConcurrentHashMap<>();
     private final HashSet<Long> pendingTerrain = new HashSet<>();
@@ -162,6 +163,14 @@ public class World {
         return furnaces.computeIfAbsent(posKey(x, y, z), k -> new craft.item.FurnaceEntity(x, y, z));
     }
 
+    /** Saves all currently loaded player-modified chunks. */
+    public void saveModifiedChunks() {
+        if (save == null) return;
+        for (Chunk c : chunks.values()) {
+            if (c.modified) save.saveChunk(c);
+        }
+    }
+
     public void tickBlockEntities() {
         for (craft.item.FurnaceEntity f : furnaces.values().toArray(new craft.item.FurnaceEntity[0])) {
             byte b = getBlock(f.x, f.y, f.z);
@@ -195,6 +204,13 @@ public class World {
             int cx = pcx + off[0], cz = pcz + off[1];
             long key = chunkKey(cx, cz);
             if (chunks.containsKey(key) || pendingTerrain.contains(key)) continue;
+            if (save != null && save.hasChunk(cx, cz)) {
+                Chunk loaded = save.loadChunk(cx, cz);
+                if (loaded != null) {
+                    chunks.put(key, loaded);
+                    continue;
+                }
+            }
             pendingTerrain.add(key);
             inFlight++;
             genPool.submit(() -> {
@@ -210,10 +226,12 @@ public class World {
             if (budget == 0) break;
             Chunk c = getChunk(pcx + off[0], pcz + off[1]);
             if (c != null && c.state == Chunk.STATE_TERRAIN) {
-                decorator.decorate(this, c);
+                if (!c.diskLoaded) {
+                    decorator.decorate(this, c);
+                    freshlyDecorated.add(c);
+                }
                 light.initChunk(c);
                 c.state = Chunk.STATE_DECORATED;
-                freshlyDecorated.add(c);
                 for (int sy = 0; sy < Chunk.SECTIONS; sy++) {
                     dirtySections.add(sectionKey(c.cx, sy, c.cz));
                 }
@@ -227,6 +245,7 @@ public class World {
             int limit = renderDist + 3;
             for (Chunk c : chunks.values()) {
                 if (Math.max(Math.abs(c.cx - pcx), Math.abs(c.cz - pcz)) > limit) {
+                    if (c.modified && save != null) save.saveChunk(c);
                     chunks.remove(chunkKey(c.cx, c.cz));
                     unloadedChunks.add(c);
                 }

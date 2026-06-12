@@ -99,6 +99,18 @@ public class Game {
         player = world.player = new Player(spawnX + 0.5, spawnY + 1, spawnZ + 0.5);
         player.yaw = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.yaw", "0")));
         player.pitch = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.pitch", "0")));
+
+        // persistence (disabled in screenshot/demo runs)
+        if (!autopilot) {
+            world.save = new craft.world.SaveManager(seed);
+            int[] savedSpawn = world.save.loadLevel(world, player);
+            if (savedSpawn != null) {
+                spawnX = savedSpawn[0];
+                spawnY = savedSpawn[1];
+                spawnZ = savedSpawn[2];
+                System.out.println("Loaded saved world");
+            }
+        }
         System.out.println("Seed: " + seed + "  Spawn: " + spawnX + "," + spawnY + "," + spawnZ);
 
         double prev = glfwGetTime();
@@ -136,9 +148,16 @@ public class Game {
                 frames = 0;
                 fpsTimer = now;
                 window.setTitle(String.format("Craft | %d fps | %d chunks", fps, world.loadedChunkCount()));
+                if (autopilot) System.out.println("fps=" + fps + " chunks=" + world.loadedChunkCount()
+                        + " sections=" + renderer.sectionCount() + " entities=" + world.entities.size());
             }
         }
 
+        if (world.save != null) {
+            world.saveModifiedChunks();
+            world.save.saveLevel(world, player, spawnX, spawnY, spawnZ);
+            System.out.println("World saved");
+        }
         pool.shutdownNow();
         window.destroy();
     }
@@ -194,6 +213,12 @@ public class Game {
             }
             wasDead = player.dead;
             tickEntities();
+        }
+
+        // autosave every 45 s
+        if (world.save != null && world.time % 900 == 0) {
+            world.saveModifiedChunks();
+            world.save.saveLevel(world, player, spawnX, spawnY, spawnZ);
         }
 
         world.time++;

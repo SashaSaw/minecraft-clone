@@ -21,7 +21,8 @@ public class Chunk {
     public final int[] lightHeight = new int[W * W];
 
     public volatile int state = STATE_EMPTY;
-    public boolean modified;   // touched by player (needs saving)
+    public boolean modified;     // touched by player (needs saving)
+    public boolean diskLoaded;   // restored from save (skip decoration)
 
     public Chunk(int cx, int cz) {
         this.cx = cx;

@@ -22,6 +22,54 @@ public final class Tiles {
     public static final int DANDELION = 17;
     public static final int POPPY = 18;
     public static final int SUGAR_CANE = 19;
+    public static final int TORCH = 20;
+    public static final int CRAFTING_TOP = 21;
+    public static final int CRAFTING_SIDE = 22;
+    public static final int FURNACE_TOP = 23;
+    public static final int FURNACE_FRONT = 24;
+    public static final int FURNACE_FRONT_LIT = 25;
+    public static final int WOOL_WHITE = 26;
+
+    public static final int CRACK_0 = 30;   // ..CRACK_9 = 39
+
+    public static final int ICON_STICK = 40;
+    public static final int ICON_COAL = 41;
+    public static final int ICON_IRON_INGOT = 42;
+    public static final int ICON_RAW_IRON = 43;
+    public static final int ICON_CHARCOAL = 44;
+    public static final int ICON_APPLE = 45;
+    public static final int ICON_WOOD_PICK = 46;
+    public static final int ICON_WOOD_AXE = 47;
+    public static final int ICON_WOOD_SHOVEL = 48;
+    public static final int ICON_WOOD_SWORD = 49;
+    public static final int ICON_STONE_PICK = 50;
+    public static final int ICON_STONE_AXE = 51;
+    public static final int ICON_STONE_SHOVEL = 52;
+    public static final int ICON_STONE_SWORD = 53;
+    public static final int ICON_IRON_PICK = 54;
+    public static final int ICON_IRON_AXE = 55;
+    public static final int ICON_IRON_SHOVEL = 56;
+    public static final int ICON_IRON_SWORD = 57;
+    public static final int ICON_PORKCHOP = 58;
+    public static final int ICON_COOKED_PORKCHOP = 59;
+    public static final int ICON_BEEF = 60;
+    public static final int ICON_COOKED_BEEF = 61;
+    public static final int ICON_CHICKEN = 62;
+    public static final int ICON_COOKED_CHICKEN = 63;
+    public static final int ICON_MUTTON = 64;
+    public static final int ICON_COOKED_MUTTON = 65;
+    public static final int ICON_ROTTEN_FLESH = 66;
+    public static final int ICON_FEATHER = 67;
+    public static final int ICON_LEATHER = 68;
+    public static final int ICON_WOOL = 69;
+    public static final int WHITE = 70;
+    public static final int ICON_HEART = 71;
+    public static final int ICON_HEART_HALF = 72;
+    public static final int ICON_HEART_EMPTY = 73;
+    public static final int ICON_HUNGER = 74;
+    public static final int ICON_HUNGER_HALF = 75;
+    public static final int ICON_HUNGER_EMPTY = 76;
+    public static final int ICON_BUBBLE = 77;
 
     public static final int ATLAS_TILES = 16;     // tiles per row
     public static final int TILE_PX = 16;

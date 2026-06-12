@@ -216,8 +216,9 @@ public class WorldRenderer {
         }
     }
 
-    public void render(Matrix4f proj, Matrix4f view, Vector3f camPos,
-                       float dayLight, float[] fogColor, float fogStart, float fogEnd) {
+    /** Opaque + cutout passes. Call renderWater afterwards (overlays may draw between). */
+    public void renderSolid(Matrix4f proj, Matrix4f view, Vector3f camPos,
+                            float dayLight, float[] fogColor, float fogStart, float fogEnd) {
         proj.mul(view, pv);
         frustum.set(pv);
 
@@ -248,14 +249,23 @@ public class WorldRenderer {
 
         shader.setInt("uCutout", 1);
         for (Section s : visible) draw(s, LAYER_CUTOUT);
+    }
 
-        // water: blended, back-to-front by section distance
+    /** Translucent water pass: blended, back-to-front by section distance. */
+    public void renderWater(Vector3f camPos) {
+        shader.bind();
         shader.setInt("uCutout", 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, atlasTex);
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         visible.sort((a, b) -> Float.compare(dist2(b, camPos), dist2(a, camPos)));
         for (Section s : visible) draw(s, LAYER_WATER);
         glDisable(GL_BLEND);
+    }
+
+    public Matrix4f pv() {
+        return pv;
     }
 
     private static float dist2(Section s, Vector3f cam) {

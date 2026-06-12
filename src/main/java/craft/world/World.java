@@ -28,6 +28,10 @@ public class World {
     public final HashSet<Long> dirtySections = new HashSet<>();
     /** Chunks removed this tick; renderer must free their meshes. */
     public final List<Chunk> unloadedChunks = new ArrayList<>();
+    /** Live entities (item drops, mobs). */
+    public final List<craft.entity.Entity> entities = new ArrayList<>();
+    /** Furnace block state by packed position. */
+    public final java.util.HashMap<Long, craft.item.FurnaceEntity> furnaces = new java.util.HashMap<>();
 
     private int[][] sortedOffsets;   // {dx, dz} sorted by distance
     private int sortedRadius = -1;
@@ -142,6 +146,25 @@ public class World {
 
     public int loadedChunkCount() {
         return chunks.size();
+    }
+
+    public static long posKey(int x, int y, int z) {
+        return ((long) (x & 0x3FFFFFF) << 38) | ((long) (z & 0x3FFFFFF) << 12) | (y & 0xFFF);
+    }
+
+    public craft.item.FurnaceEntity furnaceAt(int x, int y, int z) {
+        return furnaces.computeIfAbsent(posKey(x, y, z), k -> new craft.item.FurnaceEntity(x, y, z));
+    }
+
+    public void tickBlockEntities() {
+        for (craft.item.FurnaceEntity f : furnaces.values().toArray(new craft.item.FurnaceEntity[0])) {
+            byte b = getBlock(f.x, f.y, f.z);
+            if (b != Block.FURNACE && b != Block.FURNACE_LIT) {
+                furnaces.remove(posKey(f.x, f.y, f.z));
+                continue;
+            }
+            f.tick(this);
+        }
     }
 
     /**

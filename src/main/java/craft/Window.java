@@ -10,6 +10,7 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class Window {
     public final long handle;
     public int fbWidth, fbHeight;
+    public int winWidth, winHeight;
     public boolean resized;
 
     public Window(int width, int height, String title) {
@@ -34,10 +35,18 @@ public class Window {
         glfwGetFramebufferSize(handle, fw, fh);
         fbWidth = fw[0];
         fbHeight = fh[0];
+        int[] ww = new int[1], wh = new int[1];
+        glfwGetWindowSize(handle, ww, wh);
+        winWidth = ww[0];
+        winHeight = wh[0];
         glfwSetFramebufferSizeCallback(handle, (win, w, h) -> {
             fbWidth = w;
             fbHeight = h;
             resized = true;
+        });
+        glfwSetWindowSizeCallback(handle, (win, w, h) -> {
+            winWidth = w;
+            winHeight = h;
         });
 
         glViewport(0, 0, fbWidth, fbHeight);

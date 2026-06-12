@@ -38,6 +38,12 @@ public class TextureGen {
         flower(Tiles.DANDELION, 0xF0C832, 0xFFE890);
         flower(Tiles.POPPY, 0xC02A18, 0x3A1208);
         sugarCane();
+        torch();
+        craftingTable();
+        furnace();
+        wool();
+        cracks();
+        icons();
         atlasTex = upload(atlas, Tiles.ATLAS_PX, Tiles.ATLAS_PX);
         sunTex = celestial(0xFFF0A0, 24);
         moonTex = celestial(0xD8D8C8, 18);
@@ -340,6 +346,350 @@ public class TextureGen {
                 int c = joint ? 0x8FAE54 : 0xA8C46A;
                 px(Tiles.SUGAR_CANE, sx, y, mul(c, 0.92 + r.nextDouble() * 0.14));
                 px(Tiles.SUGAR_CANE, sx + 1, y, mul(c, 0.88 + r.nextDouble() * 0.14));
+            }
+        }
+    }
+
+    private void clearTile(int tile) {
+        for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) px(tile, x, y, 0, 0);
+    }
+
+    private void torch() {
+        Random r = rng(Tiles.TORCH);
+        clearTile(Tiles.TORCH);
+        for (int y = 6; y <= 15; y++) {
+            px(Tiles.TORCH, 7, y, mul(0x6B5232, 0.92 + r.nextDouble() * 0.16));
+            px(Tiles.TORCH, 8, y, mul(0x5A4527, 0.92 + r.nextDouble() * 0.16));
+        }
+        px(Tiles.TORCH, 7, 5, 0xFFD800);
+        px(Tiles.TORCH, 8, 5, 0xFFD800);
+        px(Tiles.TORCH, 7, 4, 0xFFF0A0);
+        px(Tiles.TORCH, 8, 4, 0xFFF0A0);
+        px(Tiles.TORCH, 7, 3, 0xFFFFD0, 200);
+        px(Tiles.TORCH, 8, 3, 0xFFFFD0, 200);
+    }
+
+    private void craftingTable() {
+        Random r = rng(Tiles.CRAFTING_TOP);
+        // top: planks with a dark work-grid frame
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++) {
+                boolean frame = x == 0 || x == 15 || y == 0 || y == 15;
+                boolean grid = (x == 7 || x == 8) && y > 1 && y < 14 || (y == 7 || y == 8) && x > 1 && x < 14;
+                int c = frame ? 0x6E5126 : (grid ? 0x8A6C38 : 0xB8945F);
+                px(Tiles.CRAFTING_TOP, x, y, mul(c, 0.94 + r.nextDouble() * 0.1));
+            }
+        }
+        // side: planks with darker panel + "tools"
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++) {
+                boolean panel = x >= 3 && x <= 12 && y >= 4 && y <= 11;
+                int c = panel ? 0x9A7B45 : 0xB8945F;
+                if (y == 0) c = 0x8A6C38;
+                px(Tiles.CRAFTING_SIDE, x, y, mul(c, 0.93 + r.nextDouble() * 0.12));
+            }
+        }
+        for (int i = 0; i < 4; i++) {   // crossed tool silhouettes on the side panel
+            px(Tiles.CRAFTING_SIDE, 5 + i, 5 + i, 0x55401E);
+            px(Tiles.CRAFTING_SIDE, 10 - i, 5 + i, 0x55401E);
+        }
+    }
+
+    private void furnace() {
+        // top: smooth stone
+        Random r = rng(Tiles.FURNACE_TOP);
+        noiseFill(Tiles.FURNACE_TOP, 0x8A8A8A, 0.05, r);
+        for (int i = 0; i < 16; i++) {
+            px(Tiles.FURNACE_TOP, i, 0, 0x6E6E6E);
+            px(Tiles.FURNACE_TOP, i, 15, 0x6E6E6E);
+            px(Tiles.FURNACE_TOP, 0, i, 0x6E6E6E);
+            px(Tiles.FURNACE_TOP, 15, i, 0x6E6E6E);
+        }
+        drawFurnaceFront(Tiles.FURNACE_FRONT, false);
+        drawFurnaceFront(Tiles.FURNACE_FRONT_LIT, true);
+    }
+
+    private void drawFurnaceFront(int tile, boolean lit) {
+        Random r = rng(tile);
+        noiseFill(tile, 0x7E7E7E, 0.06, r);
+        for (int i = 0; i < 16; i++) {
+            px(tile, i, 15, 0x5E5E5E);
+            px(tile, 0, i, 0x6A6A6A);
+            px(tile, 15, i, 0x6A6A6A);
+        }
+        for (int y = 9; y <= 14; y++) {       // opening
+            for (int x = 4; x <= 11; x++) {
+                if (lit) {
+                    int c = y >= 13 ? 0xFFC820 : (y >= 11 ? 0xE87818 : 0x281410);
+                    px(tile, x, y, mul(c, 0.9 + r.nextDouble() * 0.2));
+                } else {
+                    px(tile, x, y, mul(0x1E1E1E, 0.8 + r.nextDouble() * 0.4));
+                }
+            }
+        }
+    }
+
+    private void wool() {
+        Random r = rng(Tiles.WOOL_WHITE);
+        noiseFill(Tiles.WOOL_WHITE, 0xE8E3DC, 0.06, r);
+    }
+
+    private void cracks() {
+        for (int s = 0; s < 10; s++) {
+            int tile = Tiles.CRACK_0 + s;
+            clearTile(tile);
+            Random r = new Random(991 + s * 13);
+            int segments = 3 + s * 2;
+            for (int i = 0; i < segments; i++) {
+                int x = r.nextInt(16), y = r.nextInt(16);
+                int len = 3 + r.nextInt(5 + s);
+                for (int j = 0; j < len; j++) {
+                    if (x >= 0 && x < 16 && y >= 0 && y < 16) px(tile, x, y, 0x141414, 170);
+                    x += r.nextInt(3) - 1;
+                    y += r.nextInt(3) - 1;
+                }
+            }
+        }
+    }
+
+    // ---------- item icons ----------
+
+    private void icons() {
+        stick(Tiles.ICON_STICK);
+        blob(Tiles.ICON_COAL, 0x2A2A2A, 0x161616);
+        blob(Tiles.ICON_CHARCOAL, 0x3A2A1A, 0x1E140C);
+        ingot(Tiles.ICON_IRON_INGOT, 0xD8D8D8, 0xA8A8A8);
+        blob(Tiles.ICON_RAW_IRON, 0xD8AF93, 0xB58A6C);
+        apple(Tiles.ICON_APPLE);
+        toolSet(Tiles.ICON_WOOD_PICK, 0xA8824E);
+        toolSet(Tiles.ICON_STONE_PICK, 0x8A8A8A);
+        toolSet(Tiles.ICON_IRON_PICK, 0xD8D8D8);
+        food(Tiles.ICON_PORKCHOP, 0xF0A0A0, 0xE8E0D8);
+        food(Tiles.ICON_COOKED_PORKCHOP, 0xC08050, 0xE8E0D8);
+        food(Tiles.ICON_BEEF, 0xB04030, 0xE0C8B8);
+        food(Tiles.ICON_COOKED_BEEF, 0x6E4226, 0xE0C8B8);
+        food(Tiles.ICON_CHICKEN, 0xE8C8B0, 0xF0E8E0);
+        food(Tiles.ICON_COOKED_CHICKEN, 0xC8853C, 0xF0E8E0);
+        food(Tiles.ICON_MUTTON, 0xC05040, 0xE0C8B8);
+        food(Tiles.ICON_COOKED_MUTTON, 0x8A5230, 0xE0C8B8);
+        blob(Tiles.ICON_ROTTEN_FLESH, 0x7A5A3A, 0x4E6E2E);
+        feather(Tiles.ICON_FEATHER);
+        leather(Tiles.ICON_LEATHER);
+        woolIcon(Tiles.ICON_WOOL);
+        for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) px(Tiles.WHITE, x, y, 0xFFFFFF);
+        hudIcons();
+    }
+
+    private static final String[] HEART_ART = {
+            "  XX   XX  ",
+            " XXXX XXXX ",
+            "XXXXXXXXXXX",
+            "XXXXXXXXXXX",
+            "XXXXXXXXXXX",
+            " XXXXXXXXX ",
+            "  XXXXXXX  ",
+            "   XXXXX   ",
+            "    XXX    ",
+            "     X     ",
+    };
+
+    private void heart(int tile, int fillColor, boolean halfOnly) {
+        clearTile(tile);
+        for (int y = 0; y < HEART_ART.length; y++) {
+            for (int x = 0; x < HEART_ART[y].length(); x++) {
+                if (HEART_ART[y].charAt(x) != 'X') continue;
+                boolean edge = isEdge(HEART_ART, x, y);
+                int c = edge ? 0x1A0505 : fillColor;
+                if (halfOnly && x > 5 && !edge) c = 0x3A3A3A;
+                px(tile, 2 + x, 3 + y, c);
+            }
+        }
+        if (!halfOnly && fillColor != 0x3A3A3A) {
+            px(tile, 4, 5, mul(fillColor, 1.6));   // shine
+            px(tile, 5, 5, mul(fillColor, 1.6));
+        }
+    }
+
+    private static boolean isEdge(String[] art, int x, int y) {
+        for (int dy = -1; dy <= 1; dy++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int ny = y + dy, nx = x + dx;
+                if (ny < 0 || ny >= art.length || nx < 0 || nx >= art[ny].length()
+                        || art[ny].charAt(nx) != 'X') {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private void drumstick(int tile, int meatColor) {
+        clearTile(tile);
+        Random r = rng(tile);
+        for (int y = 3; y <= 9; y++) {        // meat blob upper-right
+            for (int x = 6; x <= 12; x++) {
+                if (Math.hypot(x - 9, y - 6) < 3.4) {
+                    px(tile, x, y, mul(meatColor, 0.9 + r.nextDouble() * 0.2));
+                }
+            }
+        }
+        px(tile, 5, 10, 0xEDE5D8);            // bone
+        px(tile, 4, 11, 0xEDE5D8);
+        px(tile, 3, 12, 0xEDE5D8);
+        px(tile, 3, 13, 0xEDE5D8);
+        px(tile, 4, 13, 0xEDE5D8);
+    }
+
+    private void hudIcons() {
+        heart(Tiles.ICON_HEART, 0xE02020, false);
+        heart(Tiles.ICON_HEART_HALF, 0xE02020, true);
+        heart(Tiles.ICON_HEART_EMPTY, 0x3A3A3A, false);
+        drumstick(Tiles.ICON_HUNGER, 0xB5651E);
+        drumstick(Tiles.ICON_HUNGER_HALF, 0x6E4214);
+        drumstick(Tiles.ICON_HUNGER_EMPTY, 0x3A3A3A);
+        // bubble
+        clearTile(Tiles.ICON_BUBBLE);
+        Random r = rng(Tiles.ICON_BUBBLE);
+        for (int y = 3; y <= 12; y++) {
+            for (int x = 3; x <= 12; x++) {
+                double d = Math.hypot(x - 7.5, y - 7.5);
+                if (d < 4.6 && d > 3.2) px(Tiles.ICON_BUBBLE, x, y, 0xC8E8F8);
+                else if (d <= 3.2) px(Tiles.ICON_BUBBLE, x, y, 0x88B8E8, 120);
+            }
+        }
+    }
+
+    private void stick(int tile) {
+        clearTile(tile);
+        for (int i = 0; i < 9; i++) {
+            px(tile, 4 + i, 12 - i, 0x6B5232);
+            px(tile, 5 + i, 12 - i, 0x8A6C40);
+        }
+    }
+
+    private void blob(int tile, int main, int dark) {
+        Random r = rng(tile);
+        clearTile(tile);
+        for (int y = 4; y <= 12; y++) {
+            for (int x = 4; x <= 12; x++) {
+                double d = Math.hypot(x - 8, y - 8);
+                if (d < 4.2 + r.nextDouble()) {
+                    px(tile, x, y, mul(r.nextInt(4) == 0 ? dark : main, 0.9 + r.nextDouble() * 0.2));
+                }
+            }
+        }
+    }
+
+    private void ingot(int tile, int main, int shadow) {
+        clearTile(tile);
+        for (int y = 6; y <= 11; y++) {
+            int inset = (11 - y);
+            for (int x = 2 + inset / 2; x <= 13 - inset / 2; x++) {
+                px(tile, x, y, y <= 7 ? mul(main, 1.1) : (y >= 10 ? shadow : main));
+            }
+        }
+    }
+
+    private void apple(int tile) {
+        Random r = rng(tile);
+        clearTile(tile);
+        for (int y = 5; y <= 12; y++) {
+            for (int x = 4; x <= 11; x++) {
+                double d = Math.hypot(x - 7.5, y - 8.5);
+                if (d < 4.0) px(tile, x, y, mul(0xD02A1A, 0.9 + r.nextDouble() * 0.2));
+            }
+        }
+        px(tile, 7, 4, 0x6B5232);
+        px(tile, 8, 3, 0x4A8A2A);
+        px(tile, 9, 3, 0x4A8A2A);
+        px(tile, 5, 6, 0xF08070);   // shine
+        px(tile, 6, 6, 0xF08070);
+    }
+
+    /** Draws pickaxe, axe, shovel, sword for one material (tiles are consecutive). */
+    private void toolSet(int pickTile, int mat) {
+        int handle = 0x8A6C40, handleDark = 0x6B5232;
+        // pickaxe
+        clearTile(pickTile);
+        for (int i = 0; i < 9; i++) px(pickTile, 3 + i, 12 - i, i % 2 == 0 ? handle : handleDark);
+        for (int i = 0; i < 9; i++) {
+            int x = 4 + i;
+            int y = 3 + (i < 3 ? (2 - i) : (i > 5 ? i - 5 : 0));
+            px(pickTile, x, y, mat);
+            px(pickTile, x, y + 1, mul(mat, 0.8));
+        }
+        // axe
+        int t = pickTile + 1;
+        clearTile(t);
+        for (int i = 0; i < 9; i++) px(t, 3 + i, 12 - i, i % 2 == 0 ? handle : handleDark);
+        for (int y = 2; y <= 6; y++) {
+            for (int x = 6; x <= 10; x++) {
+                if (x + y <= 14 && y - x <= -2) px(t, x, y, mul(mat, x > 8 ? 1.0 : 0.85));
+            }
+        }
+        // shovel
+        t = pickTile + 2;
+        clearTile(t);
+        for (int i = 0; i < 9; i++) px(t, 3 + i, 12 - i, i % 2 == 0 ? handle : handleDark);
+        for (int y = 2; y <= 5; y++) {
+            for (int x = 9; x <= 12; x++) {
+                if (Math.abs((x - 10.5) + (y - 3.5)) < 2.5) px(t, x, y, mat);
+            }
+        }
+        // sword
+        t = pickTile + 3;
+        clearTile(t);
+        for (int i = 0; i < 9; i++) {
+            px(t, 5 + i, 10 - i, mat);
+            px(t, 6 + i, 10 - i, mul(mat, 0.8));
+        }
+        px(t, 4, 11, handleDark);   // guard
+        px(t, 5, 12, handleDark);
+        px(t, 6, 11, handleDark);
+        px(t, 3, 13, handle);       // grip
+        px(t, 2, 14, handle);
+    }
+
+    private void food(int tile, int meat, int bone) {
+        Random r = rng(tile);
+        clearTile(tile);
+        for (int y = 4; y <= 11; y++) {
+            for (int x = 5; x <= 12; x++) {
+                double d = Math.hypot((x - 8.5) * 0.9, y - 7.5);
+                if (d < 3.8) px(tile, x, y, mul(meat, 0.88 + r.nextDouble() * 0.24));
+            }
+        }
+        px(tile, 4, 12, bone);   // bone / rind nub
+        px(tile, 3, 13, bone);
+        px(tile, 4, 13, bone);
+    }
+
+    private void feather(int tile) {
+        clearTile(tile);
+        for (int i = 0; i < 8; i++) {
+            px(tile, 4 + i, 11 - i, 0xEDEDED);
+            px(tile, 5 + i, 11 - i, 0xDADADA);
+            if (i < 7) px(tile, 4 + i, 10 - i, 0xF8F8F8);
+        }
+        for (int i = 0; i < 3; i++) px(tile, 3 + i, 13 - i, 0xB0A890);   // quill
+    }
+
+    private void leather(int tile) {
+        Random r = rng(tile);
+        clearTile(tile);
+        for (int y = 4; y <= 12; y++) {
+            for (int x = 3; x <= 12; x++) {
+                if ((x + y) % 9 != 0) px(tile, x, y, mul(0xB5824E, 0.9 + r.nextDouble() * 0.2));
+            }
+        }
+    }
+
+    private void woolIcon(int tile) {
+        Random r = rng(tile);
+        clearTile(tile);
+        for (int y = 3; y <= 12; y++) {
+            for (int x = 3; x <= 12; x++) {
+                px(tile, x, y, mul(0xE8E3DC, 0.9 + r.nextDouble() * 0.18));
             }
         }
     }

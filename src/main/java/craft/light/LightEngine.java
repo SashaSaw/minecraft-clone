@@ -82,6 +82,15 @@ public class LightEngine {
     public void onBlockChanged(int x, int y, int z, byte oldId, byte newId) {
         Block oldB = Block.get(oldId), newB = Block.get(newId);
 
+        // light emission (torches, lit furnaces)
+        if (oldB.emission > 0 && newB.emission < oldB.emission) {
+            removeLight(x, y, z, false);
+        }
+        if (newB.emission > 0) {
+            setLight(x, y, z, newB.emission, false);
+            blockQ.add(pack(x, y, z));
+        }
+
         if (newB.opacity > oldB.opacity) {
             // Light got blocked: remove sky light at the cell and re-flood
             removeLight(x, y, z, true);

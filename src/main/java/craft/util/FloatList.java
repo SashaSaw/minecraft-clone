@@ -22,6 +22,10 @@ public class FloatList {
         return size;
     }
 
+    public void clear() {
+        size = 0;
+    }
+
     public float[] raw() {
         return data;
     }

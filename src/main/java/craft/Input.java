@@ -82,6 +82,15 @@ public class Input {
         return cursorCaptured;
     }
 
+    /** Cursor position in window coordinates (valid when not captured). */
+    public double cursorX() {
+        return lastMouseX;
+    }
+
+    public double cursorY() {
+        return lastMouseY;
+    }
+
     /** Returns and clears the accumulated mouse delta. */
     public double[] consumeMouseDelta() {
         double[] d = {mouseDX, mouseDY};

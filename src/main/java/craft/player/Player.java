@@ -1,6 +1,8 @@
 package craft.player;
 
 import craft.Input;
+import craft.entity.Entity;
+import craft.item.Inventory;
 import craft.world.Block;
 import craft.world.World;
 
@@ -10,30 +12,32 @@ import static org.lwjgl.glfw.GLFW.*;
  * Vanilla-style player physics, per tick (20 TPS):
  *   vel += accel; pos += vel (collision-clipped); vy = (vy-0.08)*0.98; vxz *= friction.
  * Hitbox 0.6 x 1.8, eye 1.62. Walk 4.317 m/s, sprint 5.612, jump 0.42 -> 1.25 blocks.
+ * Survival: 20 HP, 20 hunger + saturation, air 300 ticks, exhaustion model.
  */
-public class Player {
-    public static final double WIDTH = 0.6, HEIGHT = 1.8, EYE = 1.62;
+public class Player extends Entity {
+    public static final double EYE = 1.62;
 
-    public double x, y, z;             // feet center
-    public double prevX, prevY, prevZ;
-    public double vx, vy, vz;
-    public float yaw, pitch;           // radians; yaw 0 = -Z (north), pitch + = down
-    public boolean onGround, sprinting, sneaking;
+    public boolean sprinting, sneaking;
     public boolean inWater;
-    public double fallDistance;
 
-    private boolean collidedHorizontally;
+    public final Inventory inventory = new Inventory();
+
+    // survival state
+    public int hp = 20;
+    public int hunger = 20;
+    public float saturation = 5;
+    public float exhaustion;
+    public int air = 300;
+    public int invulnTicks;
+    public boolean dead;
+    public int hurtFlash;            // red vignette timer
+
     private long lastWPressTick = -100;
     private boolean sprintLatch;
     public long tickCounter;
 
     public Player(double x, double y, double z) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        prevX = x;
-        prevY = y;
-        prevZ = z;
+        super(0.6, 1.8, x, y, z);
     }
 
     /** Mouse look — call per frame. */
@@ -52,25 +56,34 @@ public class Player {
         }
     }
 
-    public void tick(Input in, World world) {
+    @Override
+    public void tick(World world) {
+        // movement handled in tick(Input, World); this satisfies Entity
+    }
+
+    public void tick(Input in, World world, boolean controls) {
         tickCounter++;
-        prevX = x;
-        prevY = y;
-        prevZ = z;
+        rememberPosition();
+        if (invulnTicks > 0) invulnTicks--;
+        if (hurtFlash > 0) hurtFlash--;
+        if (dead) return;
 
         double fwd = 0, strafe = 0;
-        if (in.isDown(GLFW_KEY_W)) fwd += 1;
-        if (in.isDown(GLFW_KEY_S)) fwd -= 1;
-        if (in.isDown(GLFW_KEY_A)) strafe -= 1;
-        if (in.isDown(GLFW_KEY_D)) strafe += 1;
-        sneaking = in.isDown(GLFW_KEY_LEFT_SHIFT);
+        if (controls) {
+            if (in.isDown(GLFW_KEY_W)) fwd += 1;
+            if (in.isDown(GLFW_KEY_S)) fwd -= 1;
+            if (in.isDown(GLFW_KEY_A)) strafe -= 1;
+            if (in.isDown(GLFW_KEY_D)) strafe += 1;
+        }
+        sneaking = controls && in.isDown(GLFW_KEY_LEFT_SHIFT);
 
-        boolean wantSprint = (in.isDown(GLFW_KEY_LEFT_CONTROL) || sprintLatch) && fwd > 0 && !sneaking;
-        if (!in.isDown(GLFW_KEY_W)) sprintLatch = false;
+        boolean canSprint = hunger > 6;
+        boolean wantSprint = controls && (in.isDown(GLFW_KEY_LEFT_CONTROL) || sprintLatch)
+                && fwd > 0 && !sneaking && canSprint;
+        if (!controls || !in.isDown(GLFW_KEY_W)) sprintLatch = false;
         if (collidedHorizontally) sprintLatch = false;
         sprinting = wantSprint;
 
-        // normalize input, rotate into world space
         double len = Math.sqrt(fwd * fwd + strafe * strafe);
         if (len > 1) {
             fwd /= len;
@@ -85,7 +98,7 @@ public class Player {
         if (inWater) {
             vx += wishX * 0.05;
             vz += wishZ * 0.05;
-            if (in.isDown(GLFW_KEY_SPACE)) vy += 0.05;
+            if (controls && in.isDown(GLFW_KEY_SPACE)) vy += 0.05;
             move(world, vx, vy, vz);
             vx *= 0.8;
             vz *= 0.8;
@@ -96,8 +109,9 @@ public class Player {
             double accel = onGround ? 0.1 * speedMult : 0.02 * (sprinting ? 1.3 : 1.0);
             vx += wishX * accel;
             vz += wishZ * accel;
-            if (in.isDown(GLFW_KEY_SPACE) && onGround) {
+            if (controls && in.isDown(GLFW_KEY_SPACE) && onGround) {
                 vy = 0.42;
+                exhaustion += sprinting ? 0.2f : 0.05f;
                 if (sprinting) {
                     vx += sin * 0.2;
                     vz += -cos * 0.2;
@@ -109,99 +123,87 @@ public class Player {
             vx *= friction;
             vz *= friction;
         }
+
+        if (sprinting) {
+            double moved = Math.hypot(x - prevX, z - prevZ);
+            exhaustion += (float) (moved * 0.1);
+        }
+
+        tickSurvival(world);
     }
 
-    private boolean isInWater(World world) {
-        int x0 = (int) Math.floor(x - WIDTH / 2), x1 = (int) Math.floor(x + WIDTH / 2);
-        int z0 = (int) Math.floor(z - WIDTH / 2), z1 = (int) Math.floor(z + WIDTH / 2);
-        int y0 = (int) Math.floor(y), y1 = (int) Math.floor(y + 0.8);
-        for (int by = y0; by <= y1; by++) {
-            for (int bz = z0; bz <= z1; bz++) {
-                for (int bx = x0; bx <= x1; bx++) {
-                    if (world.getBlock(bx, by, bz) == Block.WATER) return true;
-                }
+    private void tickSurvival(World world) {
+        // drowning
+        if (eyeInWater(world)) {
+            if (--air <= -20) {
+                air = 0;
+                damage(2);
+            }
+        } else {
+            air = Math.min(300, air + 4);
+        }
+
+        // exhaustion -> hunger drain
+        while (exhaustion >= 4f) {
+            exhaustion -= 4f;
+            if (saturation > 0) saturation = Math.max(0, saturation - 1);
+            else if (hunger > 0) hunger--;
+        }
+
+        // regen / starvation
+        if (tickCounter % 80 == 0) {
+            if (hunger >= 18 && hp < 20) {
+                hp++;
+                exhaustion += 3f;
+            } else if (hunger == 0 && hp > 1) {
+                damage(1);
             }
         }
-        return false;
     }
 
-    /** Eye is underwater (for fog). */
+    @Override
+    protected void onLand(double dist) {
+        int dmg = (int) Math.round(dist - 3);
+        if (dmg > 0) damage(dmg);
+    }
+
+    public void damage(int amount) {
+        if (dead || invulnTicks > 0) return;
+        hp -= amount;
+        invulnTicks = 10;
+        hurtFlash = 10;
+        if (hp <= 0) {
+            hp = 0;
+            dead = true;
+        }
+    }
+
+    public boolean eat(int foodValue) {
+        if (hunger >= 20) return false;
+        hunger = Math.min(20, hunger + foodValue);
+        saturation = Math.min(hunger, saturation + foodValue * 0.6f);
+        return true;
+    }
+
+    public void respawn(int sx, int sy, int sz) {
+        x = sx + 0.5;
+        y = sy + 1;
+        z = sz + 0.5;
+        prevX = x;
+        prevY = y;
+        prevZ = z;
+        vx = vy = vz = 0;
+        hp = 20;
+        hunger = 20;
+        saturation = 5;
+        air = 300;
+        exhaustion = 0;
+        fallDistance = 0;
+        dead = false;
+    }
+
     public boolean eyeInWater(World world) {
         return world.getBlock((int) Math.floor(x), (int) Math.floor(y + EYE), (int) Math.floor(z))
                 == Block.WATER;
-    }
-
-    /** Axis-separated collision clipping against solid blocks. */
-    private void move(World world, double dx, double dy, double dz) {
-        double origDy = dy, origDx = dx, origDz = dz;
-
-        dy = clipAxis(world, 1, dy);
-        y += dy;
-        dx = clipAxis(world, 0, dx);
-        x += dx;
-        dz = clipAxis(world, 2, dz);
-        z += dz;
-
-        onGround = origDy < 0 && dy != origDy;
-        if (onGround) {
-            if (fallDistance > 0) fallDistance = Math.max(0, fallDistance);
-            fallDistance = 0;
-        } else if (dy < 0) {
-            fallDistance -= dy;
-        }
-        collidedHorizontally = dx != origDx || dz != origDz;
-        if (dx != origDx) vx = 0;
-        if (dy != origDy) vy = 0;
-        if (dz != origDz) vz = 0;
-    }
-
-    private double clipAxis(World world, int axis, double delta) {
-        if (delta == 0) return 0;
-        double minX = x - WIDTH / 2, maxX = x + WIDTH / 2;
-        double minY = y, maxY = y + HEIGHT;
-        double minZ = z - WIDTH / 2, maxZ = z + WIDTH / 2;
-
-        // swept region
-        double sMinX = minX + (axis == 0 && delta < 0 ? delta : 0);
-        double sMaxX = maxX + (axis == 0 && delta > 0 ? delta : 0);
-        double sMinY = minY + (axis == 1 && delta < 0 ? delta : 0);
-        double sMaxY = maxY + (axis == 1 && delta > 0 ? delta : 0);
-        double sMinZ = minZ + (axis == 2 && delta < 0 ? delta : 0);
-        double sMaxZ = maxZ + (axis == 2 && delta > 0 ? delta : 0);
-
-        int bx0 = (int) Math.floor(sMinX), bx1 = (int) Math.floor(sMaxX);
-        int by0 = (int) Math.floor(sMinY), by1 = (int) Math.floor(sMaxY);
-        int bz0 = (int) Math.floor(sMinZ), bz1 = (int) Math.floor(sMaxZ);
-
-        final double EPS = 1e-7;
-        for (int by = by0; by <= by1; by++) {
-            for (int bz = bz0; bz <= bz1; bz++) {
-                for (int bx = bx0; bx <= bx1; bx++) {
-                    if (!Block.get(world.getBlock(bx, by, bz)).solid) continue;
-                    // block AABB is (bx,by,bz)..(+1,+1,+1)
-                    switch (axis) {
-                        case 0 -> {
-                            if (maxY > by && minY < by + 1 && maxZ > bz && minZ < bz + 1) {
-                                if (delta > 0 && bx >= maxX) delta = Math.min(delta, bx - maxX - EPS);
-                                if (delta < 0 && bx + 1 <= minX) delta = Math.max(delta, bx + 1 - minX + EPS);
-                            }
-                        }
-                        case 1 -> {
-                            if (maxX > bx && minX < bx + 1 && maxZ > bz && minZ < bz + 1) {
-                                if (delta > 0 && by >= maxY) delta = Math.min(delta, by - maxY - EPS);
-                                if (delta < 0 && by + 1 <= minY) delta = Math.max(delta, by + 1 - minY + EPS);
-                            }
-                        }
-                        case 2 -> {
-                            if (maxX > bx && minX < bx + 1 && maxY > by && minY < by + 1) {
-                                if (delta > 0 && bz >= maxZ) delta = Math.min(delta, bz - maxZ - EPS);
-                                if (delta < 0 && bz + 1 <= minZ) delta = Math.max(delta, bz + 1 - minZ + EPS);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return delta;
     }
 }

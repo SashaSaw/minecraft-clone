@@ -1,6 +1,7 @@
 package craft.player;
 
 import craft.Input;
+import craft.Keybinds;
 import craft.entity.Entity;
 import craft.entity.Mob;
 import craft.item.Inventory;
@@ -65,7 +66,7 @@ public class Player extends Entity {
     }
 
     public void onKeyPress(int key) {
-        if (key == GLFW_KEY_W) {
+        if (key == Keybinds.Action.FORWARD.key) {
             if (tickCounter - lastWPressTick <= 7) sprintLatch = true;
             lastWPressTick = tickCounter;
         }
@@ -87,17 +88,17 @@ public class Player extends Entity {
 
         double fwd = 0, strafe = 0;
         if (controls) {
-            if (in.isDown(GLFW_KEY_W)) fwd += 1;
-            if (in.isDown(GLFW_KEY_S)) fwd -= 1;
-            if (in.isDown(GLFW_KEY_A)) strafe -= 1;
-            if (in.isDown(GLFW_KEY_D)) strafe += 1;
+            if (Keybinds.down(in, Keybinds.Action.FORWARD)) fwd += 1;
+            if (Keybinds.down(in, Keybinds.Action.BACK)) fwd -= 1;
+            if (Keybinds.down(in, Keybinds.Action.LEFT)) strafe -= 1;
+            if (Keybinds.down(in, Keybinds.Action.RIGHT)) strafe += 1;
         }
-        sneaking = controls && in.isDown(GLFW_KEY_LEFT_SHIFT);
+        sneaking = controls && Keybinds.down(in, Keybinds.Action.SNEAK);
 
         boolean canSprint = hunger > 6;
-        boolean wantSprint = controls && (in.isDown(GLFW_KEY_LEFT_CONTROL) || sprintLatch)
+        boolean wantSprint = controls && (Keybinds.down(in, Keybinds.Action.SPRINT) || sprintLatch)
                 && fwd > 0 && !sneaking && canSprint;
-        if (!controls || !in.isDown(GLFW_KEY_W)) sprintLatch = false;
+        if (!controls || !Keybinds.down(in, Keybinds.Action.FORWARD)) sprintLatch = false;
         if (collidedHorizontally) sprintLatch = false;
         sprinting = wantSprint;
 
@@ -115,7 +116,7 @@ public class Player extends Entity {
         if (inWater) {
             vx += wishX * 0.05;
             vz += wishZ * 0.05;
-            if (controls && in.isDown(GLFW_KEY_SPACE)) vy += 0.05;
+            if (controls && Keybinds.down(in, Keybinds.Action.JUMP)) vy += 0.05;
             move(world, vx, vy, vz);
             vx *= 0.8;
             vz *= 0.8;
@@ -126,7 +127,7 @@ public class Player extends Entity {
             double accel = onGround ? 0.1 * speedMult : 0.02 * (sprinting ? 1.3 : 1.0);
             vx += wishX * accel;
             vz += wishZ * accel;
-            if (controls && in.isDown(GLFW_KEY_SPACE) && onGround) {
+            if (controls && Keybinds.down(in, Keybinds.Action.JUMP) && onGround) {
                 vy = 0.42;
                 exhaustion += sprinting ? 0.2f : 0.05f;
                 if (sprinting) {

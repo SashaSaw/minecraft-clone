@@ -2,6 +2,7 @@
 build/
 saves/
 settings.properties
+screenshot-*.png
 *.log
 .DS_Store
 .idea/

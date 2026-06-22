@@ -36,7 +36,7 @@ public class Game {
     private static final double TICK = 1.0 / 20.0;
     private static final float BASE_FOV = 70f;
 
-    private enum State {TITLE, WORLDS, CREATE, RENAME, CONFIRM_DELETE, SETTINGS, PLAYING}
+    private enum State {TITLE, WORLDS, CREATE, RENAME, CONFIRM_DELETE, SETTINGS, CONTROLS, PLAYING}
 
     private enum View {FIRST, THIRD_BACK, THIRD_FRONT}
 
@@ -69,6 +69,7 @@ public class Game {
     private final StringBuilder seedField = new StringBuilder();
     private int focusedField;
     private String activeSlider;
+    private Keybinds.Action listening;   // control being rebound, or null
     private float guiScalePreview = 3;
     private int renderDist = 8;
     private float fovBoost;
@@ -119,6 +120,9 @@ public class Game {
             state = State.WORLDS;
         } else if ("settings".equals(System.getProperty("craft.menu"))) {
             openSettings();
+        } else if ("controls".equals(System.getProperty("craft.menu"))) {
+            openSettings();
+            state = State.CONTROLS;
         } else if ("create".equals(System.getProperty("craft.menu"))) {
             performAction("createScreen");
         }
@@ -332,7 +336,19 @@ public class Game {
                 btns.add(new MenuButton("worlds", "CANCEL", cx - w / 2, y + 30, w, h, true));
             }
             case SETTINGS -> {
-                btns.add(new MenuButton("settingsdone", "DONE", cx - w / 2, ui.screenH / 2f + 60, w, h, true));
+                btns.add(new MenuButton("controls", "CONTROLS", cx - w / 2, ui.screenH / 2f + 32, w, h, true));
+                btns.add(new MenuButton("settingsdone", "DONE", cx - w / 2, ui.screenH / 2f + 62, w, h, true));
+            }
+            case CONTROLS -> {
+                Keybinds.Action[] acts = Keybinds.Action.values();
+                for (int i = 0; i < acts.length; i++) {
+                    float[] r = controlRect(i);
+                    String lbl = listening == acts[i] ? "> ? <" : Keybinds.keyName(acts[i].key);
+                    btns.add(new MenuButton("rebind:" + i, lbl, r[0], r[1], r[2], r[3], true));
+                }
+                float bw = 150, by = 44 + 6 * 20 + 12;
+                btns.add(new MenuButton("resetkeys", "RESET DEFAULTS", cx - bw - 4, by, bw, h, true));
+                btns.add(new MenuButton("controlsdone", "DONE", cx + 4, by, bw, h, true));
             }
             case PLAYING -> {
                 if (paused) {
@@ -405,9 +421,25 @@ public class Game {
             }
             case "settings" -> openSettings();
             case "settingsdone" -> closeSettings();
+            case "controls" -> {
+                listening = null;
+                state = State.CONTROLS;
+            }
+            case "controlsdone" -> {
+                listening = null;
+                state = State.SETTINGS;
+            }
+            case "resetkeys" -> {
+                Keybinds.resetDefaults();
+                Settings.save();
+            }
             case "resume" -> setPaused(false);
             case "savequit" -> quitToTitle();
             default -> {
+                if (id.startsWith("rebind:")) {
+                    listening = Keybinds.Action.values()[Integer.parseInt(id.substring(7))];
+                    return;
+                }
                 int i = Integer.parseInt(id.substring(id.indexOf(':') + 1));
                 if (i >= worldsCache.size()) return;
                 WorldInfo e = worldsCache.get(i);
@@ -493,6 +525,24 @@ public class Game {
             return;
         }
 
+        // rebinding a control: the next key press becomes the binding (Esc cancels)
+        if (state == State.CONTROLS && listening != null) {
+            int k = input.nextKeyPress();
+            if (k != -1) {
+                if (k != GLFW_KEY_ESCAPE) {
+                    Keybinds.bind(listening, k);
+                    Settings.save();
+                }
+                listening = null;
+                while (input.nextKeyPress() != -1) {   // discard any other queued presses
+                }
+            }
+            input.clearTyped();
+            input.consumeMouseDelta();
+            input.consumeScroll();
+            return;
+        }
+
         // text input
         boolean typing = state == State.CREATE || state == State.RENAME;
         if (typing) {
@@ -516,6 +566,7 @@ public class Game {
                         state = State.WORLDS;
                     }
                     case SETTINGS -> closeSettings();
+                    case CONTROLS -> state = State.SETTINGS;
                     case PLAYING -> setPaused(false);
                     default -> {
                     }
@@ -594,26 +645,27 @@ public class Game {
             if (key == GLFW_KEY_ESCAPE) {
                 if (screen != null) closeScreen();
                 else setPaused(true);
-            } else if (key == GLFW_KEY_E) {
-                if (screen != null) closeScreen();
-                else if (!player.dead) openScreen(new Screen.InventoryScreen(player.inventory));
-            } else if (key == GLFW_KEY_W) {
-                player.onKeyPress(key);
             } else if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9) {
                 player.inventory.selected = key - GLFW_KEY_1;
-            } else if (key == GLFW_KEY_F5) {
+            } else if (key == Keybinds.Action.INVENTORY.key) {
+                if (screen != null) closeScreen();
+                else if (!player.dead) openScreen(new Screen.InventoryScreen(player.inventory));
+            } else if (key == Keybinds.Action.PERSPECTIVE.key) {
                 perspective = switch (perspective) {
                     case FIRST -> View.THIRD_BACK;
                     case THIRD_BACK -> View.THIRD_FRONT;
                     case THIRD_FRONT -> View.FIRST;
                 };
-            } else if (key == GLFW_KEY_F3) {
+            } else if (key == Keybinds.Action.DEBUG.key) {
                 showDebug = !showDebug;
-            } else if (key == GLFW_KEY_F2) {
+            } else if (key == Keybinds.Action.SCREENSHOT.key) {
                 craft.util.Screenshot.capture(window.fbWidth, window.fbHeight,
                         "screenshot-" + System.currentTimeMillis() + ".png");
-            } else if (key == GLFW_KEY_Q && screen == null && !player.dead) {
+            } else if (key == Keybinds.Action.DROP.key && screen == null && !player.dead) {
                 dropHeldItem();
+            }
+            if (key == Keybinds.Action.FORWARD.key) {
+                player.onKeyPress(key);   // double-tap-forward to sprint
             }
         }
 
@@ -810,6 +862,15 @@ public class Game {
         return maxDist;
     }
 
+    /** Key-box rect {boxX, y, boxW, boxH, labelX} for control row i (2 columns of 6). */
+    private float[] controlRect(int i) {
+        float colW = 150, boxW = 60, boxH = 16;
+        int col = i / 6, row = i % 6;
+        float left = ui.screenW / 2f - colW + col * colW;
+        float y = 44 + row * 20;
+        return new float[]{left + colW - boxW - 6, y, boxW, boxH, left + 4};
+    }
+
     private void renderMenu() {
         glClearColor(0.08f, 0.07f, 0.07f, 1);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -854,6 +915,7 @@ public class Game {
                 }
             }
             case SETTINGS -> drawSettingsPanel();
+            case CONTROLS -> drawControlsPanel(cx);
             default -> {
             }
         }
@@ -867,6 +929,18 @@ public class Game {
         String t = text;
         if (focused && (System.currentTimeMillis() / 400) % 2 == 0) t += "_";
         ui.text(t, rect[0] + 4, rect[1] + 4, 1, 1, 1);
+    }
+
+    private void drawControlsPanel(float cx) {
+        ui.textCenteredScaled("CONTROLS", cx, 16, 2, 1, 1, 1);
+        Keybinds.Action[] acts = Keybinds.Action.values();
+        for (int i = 0; i < acts.length; i++) {
+            float[] r = controlRect(i);
+            ui.text(acts[i].label, r[4], r[1] + 4, 0.85f, 0.85f, 0.85f);
+        }
+        if (listening != null) {
+            ui.textCentered("PRESS A KEY  (ESC TO CANCEL)", cx, 44 + 6 * 20 + 38, 0.95f, 0.95f, 0.6f);
+        }
     }
 
     private void drawSettingsPanel() {
@@ -972,6 +1046,8 @@ public class Game {
             ui.rect(0, 0, ui.screenW, ui.screenH, 0, 0, 0, 0.55f);
             if (state == State.SETTINGS) {
                 drawSettingsPanel();
+            } else if (state == State.CONTROLS) {
+                drawControlsPanel(ui.screenW / 2f);
             } else {
                 ui.textCenteredScaled("GAME PAUSED", ui.screenW / 2f, ui.screenH / 2f - 70, 2, 1, 1, 1);
             }

@@ -19,6 +19,7 @@ public final class Settings {
             p.load(in);
             guiScale = clampScale(Integer.parseInt(p.getProperty("guiScale", "3")));
             brightness = clamp01(Float.parseFloat(p.getProperty("brightness", "0.25")));
+            Keybinds.load(p);
         } catch (Exception e) {
             System.err.println("Failed to load settings: " + e);
         }
@@ -29,6 +30,7 @@ public final class Settings {
             Properties p = new Properties();
             p.setProperty("guiScale", String.valueOf(guiScale));
             p.setProperty("brightness", String.valueOf(brightness));
+            Keybinds.save(p);
             p.store(out, "Craft settings");
         } catch (Exception e) {
             System.err.println("Failed to save settings: " + e);

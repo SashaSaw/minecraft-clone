@@ -2,6 +2,7 @@ package craft.player;
 
 import craft.Input;
 import craft.entity.Entity;
+import craft.entity.Mob;
 import craft.item.Inventory;
 import craft.world.Block;
 import craft.world.World;
@@ -145,11 +146,16 @@ public class Player extends Entity {
             exhaustion += (float) (moved * 0.1);
         }
 
-        // third-person walk animation: swing limbs by horizontal speed, face look dir
+        // third-person walk animation: swing limbs by horizontal speed; the body turns
+        // toward the direction of travel while walking, else eases to face the look dir
         double hs = Math.hypot(x - prevX, z - prevZ);
         limbSwingAmount += (float) ((Math.min(hs * 4, 1) - limbSwingAmount) * 0.4);
         limbSwing += (float) hs;
-        bodyYaw = (float) yaw;
+        float targetYaw = hs > 0.0025
+                ? (float) Math.atan2(x - prevX, -(z - prevZ))
+                : (float) yaw;
+        float d = Mob.wrapAngle(targetYaw - bodyYaw);
+        bodyYaw += Math.max(-0.35f, Math.min(0.35f, d));
 
         tickSurvival(world);
     }

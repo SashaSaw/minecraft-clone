@@ -148,8 +148,9 @@ public class MobRenderer {
         ey = player.prevY + (player.y - player.prevY) * partial;
         ez = player.prevZ + (player.z - player.prevZ) * partial;
         float bYaw = player.prevBodyYaw + Mob.wrapAngle(player.bodyYaw - player.prevBodyYaw) * partial;
-        bodyYawSin = (float) Math.sin(bYaw);
-        bodyYawCos = (float) Math.cos(bYaw);
+        // body-yaw rotation is mirrored relative to the look convention, so negate it
+        bodyYawSin = (float) Math.sin(-bYaw);
+        bodyYawCos = (float) Math.cos(-bYaw);
 
         int bx = (int) Math.floor(ex), by = (int) Math.floor(ey + 0.9), bz = (int) Math.floor(ez);
         float sky = world.getSky(bx, by, bz) / 15f;
@@ -160,7 +161,7 @@ public class MobRenderer {
         float amt = player.limbSwingAmount;
         float legA = (float) Math.cos(swing) * 1.4f * amt;
         float legB = (float) Math.cos(swing + Math.PI) * 1.4f * amt;
-        float headPitch = (float) player.pitch;
+        float headPitch = -(float) player.pitch;
         float armSwing = (float) Math.sin(Math.max(0, player.swingTicks - partial)
                 / Player.SWING_TICKS * Math.PI);
 

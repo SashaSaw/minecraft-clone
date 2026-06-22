@@ -1,6 +1,7 @@
 .gradle/
 build/
 saves/
+settings.properties
 *.log
 .DS_Store
 .idea/

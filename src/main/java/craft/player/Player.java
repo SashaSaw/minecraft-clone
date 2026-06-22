@@ -17,8 +17,17 @@ import static org.lwjgl.glfw.GLFW.*;
 public class Player extends Entity {
     public static final double EYE = 1.62;
 
+    /** First-/third-person hand swing animation length, in ticks. */
+    public static final int SWING_TICKS = 6;
+
     public boolean sprinting, sneaking;
     public boolean inWater;
+
+    // third-person body animation
+    public float bodyYaw, prevBodyYaw;
+    public float limbSwing, limbSwingAmount;
+    /** Counts down each tick while the arm is mid-swing (attack/break/place). */
+    public int swingTicks;
 
     public final Inventory inventory = new Inventory();
 
@@ -49,6 +58,11 @@ public class Player extends Entity {
         if (pitch < -limit) pitch = -limit;
     }
 
+    /** Starts (or restarts) the arm swing shown by the hand/body model. */
+    public void swing() {
+        swingTicks = SWING_TICKS;
+    }
+
     public void onKeyPress(int key) {
         if (key == GLFW_KEY_W) {
             if (tickCounter - lastWPressTick <= 7) sprintLatch = true;
@@ -64,8 +78,10 @@ public class Player extends Entity {
     public void tick(Input in, World world, boolean controls) {
         tickCounter++;
         rememberPosition();
+        prevBodyYaw = bodyYaw;
         if (invulnTicks > 0) invulnTicks--;
         if (hurtFlash > 0) hurtFlash--;
+        if (swingTicks > 0) swingTicks--;
         if (dead) return;
 
         double fwd = 0, strafe = 0;
@@ -128,6 +144,12 @@ public class Player extends Entity {
             double moved = Math.hypot(x - prevX, z - prevZ);
             exhaustion += (float) (moved * 0.1);
         }
+
+        // third-person walk animation: swing limbs by horizontal speed, face look dir
+        double hs = Math.hypot(x - prevX, z - prevZ);
+        limbSwingAmount += (float) ((Math.min(hs * 4, 1) - limbSwingAmount) * 0.4);
+        limbSwing += (float) hs;
+        bodyYaw = (float) yaw;
 
         tickSurvival(world);
     }

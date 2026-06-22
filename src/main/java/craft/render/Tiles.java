@@ -89,6 +89,12 @@ public final class Tiles {
     public static final int YELLOW = 94;
     public static final int RED = 95;
 
+    // player skin (third-person body model)
+    public static final int PLAYER_FACE = 96;
+    public static final int PLAYER_SKIN = 97;
+    public static final int PLAYER_SHIRT = 98;
+    public static final int PLAYER_PANTS = 99;
+
     public static final int ATLAS_TILES = 16;     // tiles per row
     public static final int TILE_PX = 16;
     public static final int ATLAS_PX = ATLAS_TILES * TILE_PX;

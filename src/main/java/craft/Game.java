@@ -38,6 +38,8 @@ public class Game {
 
     private enum State {TITLE, WORLDS, CREATE, RENAME, CONFIRM_DELETE, SETTINGS, PLAYING}
 
+    private enum View {FIRST, THIRD_BACK, THIRD_FRONT}
+
     private final Long initialSeed;
     private Window window;
     private Input input;
@@ -71,6 +73,7 @@ public class Game {
     private int renderDist = 8;
     private float fovBoost;
     private boolean showDebug;
+    private View perspective = View.FIRST;
     private boolean wasDead;
     private int spawnX, spawnY, spawnZ;
     private int fps;
@@ -198,6 +201,11 @@ public class Game {
         player = world.player = new Player(spawnX + 0.5, spawnY + 1, spawnZ + 0.5);
         player.yaw = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.yaw", "0")));
         player.pitch = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.pitch", "0")));
+        String viewProp = System.getProperty("craft.view");
+        if (viewProp != null) {
+            perspective = viewProp.equals("3") ? View.THIRD_BACK
+                    : viewProp.equals("3f") ? View.THIRD_FRONT : View.FIRST;
+        }
 
         if (!autopilot) {
             world.save = new SaveManager(dir);
@@ -593,6 +601,12 @@ public class Game {
                 player.onKeyPress(key);
             } else if (key >= GLFW_KEY_1 && key <= GLFW_KEY_9) {
                 player.inventory.selected = key - GLFW_KEY_1;
+            } else if (key == GLFW_KEY_F5) {
+                perspective = switch (perspective) {
+                    case FIRST -> View.THIRD_BACK;
+                    case THIRD_BACK -> View.THIRD_FRONT;
+                    case THIRD_FRONT -> View.FIRST;
+                };
             } else if (key == GLFW_KEY_F3) {
                 showDebug = !showDebug;
             } else if (key == GLFW_KEY_F2) {
@@ -785,6 +799,17 @@ public class Game {
         }
     }
 
+    /** Steps from the eye along dir until a solid block; returns the clamped camera distance. */
+    private float clampCameraDist(Vector3f eye, Vector3f dir, float maxDist) {
+        for (float d = 0.1f; d <= maxDist; d += 0.1f) {
+            int bx = (int) Math.floor(eye.x + dir.x * d);
+            int by = (int) Math.floor(eye.y + dir.y * d);
+            int bz = (int) Math.floor(eye.z + dir.z * d);
+            if (Block.get(world.getBlock(bx, by, bz)).solid) return Math.max(0.3f, d - 0.2f);
+        }
+        return maxDist;
+    }
+
     private void renderMenu() {
         glClearColor(0.08f, 0.07f, 0.07f, 1);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -866,7 +891,7 @@ public class Game {
         double ix = player.prevX + (player.x - player.prevX) * partial;
         double iy = player.prevY + (player.y - player.prevY) * partial;
         double iz = player.prevZ + (player.z - player.prevZ) * partial;
-        camPos.set((float) ix, (float) (iy + Player.EYE), (float) iz);
+        Vector3f eye = new Vector3f((float) ix, (float) (iy + Player.EYE), (float) iz);
 
         float targetBoost = player.sprinting ? 1f : 0f;
         fovBoost += (targetBoost - fovBoost) * 0.15f;
@@ -879,7 +904,18 @@ public class Game {
         float cosP = (float) Math.cos(player.pitch), sinP = (float) Math.sin(player.pitch);
         float sinY = (float) Math.sin(player.yaw), cosY = (float) Math.cos(player.yaw);
         Vector3f forward = new Vector3f(sinY * cosP, -sinP, -cosY * cosP);
-        view.identity().lookAt(camPos, new Vector3f(camPos).add(forward), new Vector3f(0, 1, 0));
+
+        Vector3f camForward;
+        if (perspective == View.FIRST) {
+            camPos.set(eye);
+            camForward = forward;
+        } else {
+            Vector3f offDir = perspective == View.THIRD_BACK ? new Vector3f(forward).negate() : new Vector3f(forward);
+            float dist = clampCameraDist(eye, offDir, 4.0f);
+            camPos.set(eye).add(new Vector3f(offDir).mul(dist));
+            camForward = perspective == View.THIRD_BACK ? forward : new Vector3f(forward).negate();
+        }
+        view.identity().lookAt(camPos, new Vector3f(camPos).add(camForward), new Vector3f(0, 1, 0));
         viewRot.set(view).setTranslation(0, 0, 0);
 
         boolean underwater = player.eyeInWater(world);
@@ -909,6 +945,9 @@ public class Game {
 
         overlays.renderItems(renderer.pv(), world, world.entities, dayLight, partial, camPos);
         mobRenderer.render(renderer.pv(), world, world.entities, dayLight, partial, camPos);
+        if (perspective != View.FIRST && !player.dead) {
+            mobRenderer.renderPlayer(renderer.pv(), player, world, dayLight, partial, camPos);
+        }
         if (screen == null && !paused && !player.dead && interaction.target != null) {
             overlays.renderSelection(renderer.pv(), interaction.target.x, interaction.target.y, interaction.target.z);
             if (interaction.breakProgress > 0) {

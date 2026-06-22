@@ -4,7 +4,11 @@ import craft.entity.Animals;
 import craft.entity.Entity;
 import craft.entity.Mob;
 import craft.entity.Zombie;
+import craft.item.Item;
+import craft.item.ItemStack;
+import craft.player.Player;
 import craft.util.FloatList;
+import craft.world.Block;
 import craft.world.World;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
@@ -124,6 +128,73 @@ public class MobRenderer {
             else if (fire) shader.setVec3("uTint", 1.6f, 1.0f, 0.6f);
             else shader.setVec3("uTint", 1, 1, 1);
             flushMob();
+        }
+    }
+
+    /**
+     * Renders the local player as a humanoid box model for the third-person view.
+     * The body faces the look direction; limbs swing with walk speed; the right arm
+     * also swings forward on attack/place; the held item sits in the right hand.
+     */
+    public void renderPlayer(Matrix4f pv, Player player, World world,
+                             float dayLight, float partial, Vector3f camPos) {
+        shader.bind();
+        shader.setMat4("uPV", pv);
+        shader.setInt("uTex", 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, atlasTex);
+
+        ex = player.prevX + (player.x - player.prevX) * partial;
+        ey = player.prevY + (player.y - player.prevY) * partial;
+        ez = player.prevZ + (player.z - player.prevZ) * partial;
+        float bYaw = player.prevBodyYaw + Mob.wrapAngle(player.bodyYaw - player.prevBodyYaw) * partial;
+        bodyYawSin = (float) Math.sin(bYaw);
+        bodyYawCos = (float) Math.cos(bYaw);
+
+        int bx = (int) Math.floor(ex), by = (int) Math.floor(ey + 0.9), bz = (int) Math.floor(ez);
+        float sky = world.getSky(bx, by, bz) / 15f;
+        float blk = world.getBlockLight(bx, by, bz) / 15f;
+        light = Math.max(craft.Settings.minLight(), Math.max(curve(blk), curve(sky) * dayLight));
+
+        float swing = player.limbSwing * 4.2f;
+        float amt = player.limbSwingAmount;
+        float legA = (float) Math.cos(swing) * 1.4f * amt;
+        float legB = (float) Math.cos(swing + Math.PI) * 1.4f * amt;
+        float headPitch = (float) player.pitch;
+        float armSwing = (float) Math.sin(Math.max(0, player.swingTicks - partial)
+                / Player.SWING_TICKS * Math.PI);
+
+        verts.clear();
+        playerModel(player, legA, legB, headPitch, armSwing);
+        shader.setVec3("uTint", 1, 1, 1);
+        flushMob();
+    }
+
+    private void playerModel(Player player, float legA, float legB, float headPitch, float armSwing) {
+        int F = Tiles.PLAYER_FACE, S = Tiles.PLAYER_SKIN, SH = Tiles.PLAYER_SHIRT, P = Tiles.PLAYER_PANTS;
+        // arms swing opposite to the same-side leg; right arm adds the attack swing
+        float rightArm = legA - armSwing * 1.4f;
+        float leftArm = legB;
+        box(0, 24, 0, headPitch, 0, -4, 0, -4, 8, 8, 8, S, S, F, S, S, S);   // head
+        box(0, 12, 0, 0, 0, -4, 0, -2, 8, 12, 4, SH, SH, SH, SH, SH, SH);    // body
+        box(6, 22, 0, rightArm, 0, -2, -12, -2, 4, 12, 4, S, S, S, S, S, S);  // right arm (+X)
+        box(-6, 22, 0, leftArm, 0, -2, -12, -2, 4, 12, 4, S, S, S, S, S, S);  // left arm (-X)
+        box(-2, 12, 0, legA, 0, -2, -12, -2, 4, 12, 4, P, P, P, P, P, P);     // left leg
+        box(2, 12, 0, legB, 0, -2, -12, -2, 4, 12, 4, P, P, P, P, P, P);      // right leg
+        ItemStack held = player.inventory.held();
+        if (held != null) heldItem(held, rightArm);
+    }
+
+    /** Held item attached to the right hand, swinging with the right arm. */
+    private void heldItem(ItemStack held, float armPitch) {
+        Item it = held.item();
+        if (it.isBlock()) {
+            Block b = it.block();
+            box(6, 22, 0, armPitch, 0, -3, -16, -8, 6, 6, 6,
+                    b.tileTop, b.tileBottom, b.tileSide, b.tileSide, b.tileSide, b.tileSide);
+        } else {
+            int t = it.icon;
+            box(6, 22, 0, armPitch, 0, -2, -17, -8, 4, 8, 1, t, t, t, t, t, t);
         }
     }
 

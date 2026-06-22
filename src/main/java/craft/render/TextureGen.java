@@ -45,6 +45,7 @@ public class TextureGen {
         cracks();
         icons();
         mobSkins();
+        playerSkin();
         atlasTex = upload(atlas, Tiles.ATLAS_PX, Tiles.ATLAS_PX);
         sunTex = celestial(0xFFF0A0, 24);
         moonTex = celestial(0xD8D8C8, 18);
@@ -760,6 +761,18 @@ public class TextureGen {
         px(Tiles.CHICKEN_FACE, 11, 6, 0x101418);
         noiseFill(Tiles.YELLOW, 0xF2C14E, 0.08, rng(Tiles.YELLOW));
         noiseFill(Tiles.RED, 0xB02020, 0.08, rng(Tiles.RED));
+    }
+
+    /** Steve-style player skin: skin tone, teal shirt, blue trousers, simple face. */
+    private void playerSkin() {
+        noiseFill(Tiles.PLAYER_SKIN, 0xC8967A, 0.06, rng(Tiles.PLAYER_SKIN));
+        noiseFill(Tiles.PLAYER_SHIRT, 0x2E9A9A, 0.07, rng(Tiles.PLAYER_SHIRT));
+        noiseFill(Tiles.PLAYER_PANTS, 0x3A4A8A, 0.08, rng(Tiles.PLAYER_PANTS));
+        noiseFill(Tiles.PLAYER_FACE, 0xC8967A, 0.06, rng(Tiles.PLAYER_FACE));
+        // hair fringe across the top
+        for (int y = 0; y < 4; y++) for (int x = 0; x < 16; x++) px(Tiles.PLAYER_FACE, x, y, 0x4A3520);
+        eyes(Tiles.PLAYER_FACE, 0xFFFFFF, 0x3A2C6E);
+        for (int x = 6; x <= 9; x++) px(Tiles.PLAYER_FACE, x, 12, 0x8A5E48);   // mouth
     }
 
     private void eyes(int tile, int white, int pupil) {

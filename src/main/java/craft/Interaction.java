@@ -44,6 +44,7 @@ public class Interaction {
         // melee attack on click (entities take priority over blocks)
         if (attackQueued) {
             attackQueued = false;
+            player.swing();
             craft.entity.Mob hit = pickMob(world, player, dx, dy, dz);
             if (hit != null) {
                 ItemStack held = player.inventory.held();
@@ -65,6 +66,7 @@ public class Interaction {
             ItemStack held = player.inventory.held();
             float dmg = BlockDrops.damagePerTick(b, held == null ? null : held.item());
             if (dmg > 0) {
+                if (player.swingTicks == 0) player.swing();   // continuous swing while mining
                 breakProgress += dmg;
                 player.exhaustion += 0.0005f;
                 if (breakProgress >= 1f) {
@@ -129,6 +131,7 @@ public class Interaction {
             if (b.solid && intersectsPlayer(player, px, py, pz)) return;
             world.setBlock(px, py, pz, id);
             player.inventory.consumeHeld();
+            player.swing();
         }
     }
 

@@ -71,6 +71,9 @@ public final class Tiles {
     public static final int ICON_HUNGER_EMPTY = 76;
     public static final int ICON_BUBBLE = 77;
 
+    // first-person viewmodel
+    public static final int ARM_SKIN = 78;   // player forearm (skin + sleeve cuff)
+
     // mob skins
     public static final int ZOMBIE_FACE = 80;
     public static final int ZOMBIE_SKIN = 81;

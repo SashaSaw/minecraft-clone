@@ -17,8 +17,14 @@ import static org.lwjgl.glfw.GLFW.*;
 public class Player extends Entity {
     public static final double EYE = 1.62;
 
+    /** First-person hand swing animation length, in ticks. */
+    public static final int SWING_TICKS = 6;
+
     public boolean sprinting, sneaking;
     public boolean inWater;
+
+    /** Counts down each tick while the hand is mid-swing (attack/break/place). */
+    public int swingTicks;
 
     public final Inventory inventory = new Inventory();
 
@@ -49,6 +55,11 @@ public class Player extends Entity {
         if (pitch < -limit) pitch = -limit;
     }
 
+    /** Starts (or restarts) the first-person hand swing. */
+    public void swing() {
+        swingTicks = SWING_TICKS;
+    }
+
     public void onKeyPress(int key) {
         if (key == GLFW_KEY_W) {
             if (tickCounter - lastWPressTick <= 7) sprintLatch = true;
@@ -66,6 +77,7 @@ public class Player extends Entity {
         rememberPosition();
         if (invulnTicks > 0) invulnTicks--;
         if (hurtFlash > 0) hurtFlash--;
+        if (swingTicks > 0) swingTicks--;
         if (dead) return;
 
         double fwd = 0, strafe = 0;

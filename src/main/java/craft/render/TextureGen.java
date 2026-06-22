@@ -45,6 +45,7 @@ public class TextureGen {
         cracks();
         icons();
         mobSkins();
+        armSkin();
         atlasTex = upload(atlas, Tiles.ATLAS_PX, Tiles.ATLAS_PX);
         sunTex = celestial(0xFFF0A0, 24);
         moonTex = celestial(0xD8D8C8, 18);
@@ -760,6 +761,19 @@ public class TextureGen {
         px(Tiles.CHICKEN_FACE, 11, 6, 0x101418);
         noiseFill(Tiles.YELLOW, 0xF2C14E, 0.08, rng(Tiles.YELLOW));
         noiseFill(Tiles.RED, 0xB02020, 0.08, rng(Tiles.RED));
+    }
+
+    /** Player forearm: skin tone with a short shirt-sleeve cuff at the top (shoulder) end. */
+    private void armSkin() {
+        Random r = rng(Tiles.ARM_SKIN);
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++) {
+                // top 4 rows are the cyan sleeve cuff, the rest is skin
+                int c = y < 4 ? 0x00A8A8 : 0xE0A070;
+                double f = 0.92 + r.nextDouble() * 0.14;
+                px(Tiles.ARM_SKIN, x, y, mul(c, f));
+            }
+        }
     }
 
     private void eyes(int tile, int white, int pupil) {

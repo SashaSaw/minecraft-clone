@@ -4,6 +4,7 @@ import craft.entity.Entity;
 import craft.entity.ItemEntity;
 import craft.entity.MobSpawner;
 import craft.player.Player;
+import craft.render.HandRenderer;
 import craft.render.MobRenderer;
 import craft.render.OverlayRenderer;
 import craft.render.Sky;
@@ -48,6 +49,7 @@ public class Game {
     private Sky sky;
     private OverlayRenderer overlays;
     private MobRenderer mobRenderer;
+    private HandRenderer handRenderer;
     private UI ui;
     private Hud hud;
 
@@ -106,6 +108,7 @@ public class Game {
         sky = new Sky(textures.sunTex, textures.moonTex);
         overlays = new OverlayRenderer(atlasTex);
         mobRenderer = new MobRenderer(atlasTex);
+        handRenderer = new HandRenderer(atlasTex);
         ui = new UI(atlasTex);
         hud = new Hud();
 
@@ -198,6 +201,7 @@ public class Game {
         player = world.player = new Player(spawnX + 0.5, spawnY + 1, spawnZ + 0.5);
         player.yaw = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.yaw", "0")));
         player.pitch = (float) Math.toRadians(Double.parseDouble(System.getProperty("craft.pitch", "0")));
+        player.inventory.selected = Integer.getInteger("craft.slot", 0) % 9;
 
         if (!autopilot) {
             world.save = new SaveManager(dir);
@@ -918,6 +922,11 @@ public class Game {
         }
 
         renderer.renderWater(camPos);
+
+        // first-person hand + held item (overlays the world)
+        if (screen == null && !paused && !player.dead) {
+            handRenderer.render(proj, player, world, camPos, dayLight, partial);
+        }
 
         // 2D overlay
         ui.begin(window.fbWidth, window.fbHeight);

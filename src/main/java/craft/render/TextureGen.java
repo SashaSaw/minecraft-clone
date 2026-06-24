@@ -776,15 +776,24 @@ public class TextureGen {
         for (int x = 6; x <= 9; x++) px(Tiles.PLAYER_FACE, x, 12, 0x8A5E48);   // mouth
     }
 
-    /** Player forearm: skin tone with a short shirt-sleeve cuff at the top (shoulder) end. */
+    /**
+     * First-person forearm. Side faces: skin with the cyan sleeve cuff on the BOTTOM
+     * rows, which the box() UV maps to the shoulder (far) end so the visible fist end
+     * stays skin. End caps (ARM_HAND): solid skin so the fist is never sleeve-coloured.
+     */
     private void armSkin() {
         Random r = rng(Tiles.ARM_SKIN);
         for (int y = 0; y < 16; y++) {
             for (int x = 0; x < 16; x++) {
-                // top 4 rows are the cyan sleeve cuff, the rest is skin
-                int c = y < 4 ? 0x00A8A8 : 0xE0A070;
+                int c = y >= 12 ? 0x00A8A8 : 0xE0A070;   // bottom 4 rows = sleeve cuff
                 double f = 0.92 + r.nextDouble() * 0.14;
                 px(Tiles.ARM_SKIN, x, y, mul(c, f));
+            }
+        }
+        Random rh = rng(Tiles.ARM_HAND);
+        for (int y = 0; y < 16; y++) {
+            for (int x = 0; x < 16; x++) {
+                px(Tiles.ARM_HAND, x, y, mul(0xE0A070, 0.92 + rh.nextDouble() * 0.14));
             }
         }
     }

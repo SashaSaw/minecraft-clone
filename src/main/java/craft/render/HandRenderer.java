@@ -89,21 +89,22 @@ public class HandRenderer {
 
         verts.clear();
 
-        // base hand transform (eye space): lower-right, tilted toward centre.
-        // The swing dips the whole hand down and rotates it forward.
+        // base hand transform (eye space): lower-right, tilted toward centre. The swing
+        // dips the hand down, chops forward, and rolls the arm clockwise on screen.
         Matrix4f hand = new Matrix4f()
                 .translate(0.46f, -0.42f + arc * -0.18f, -0.72f)
-                .rotateY((float) Math.toRadians(-12 + arc * 18))
-                .rotateX((float) Math.toRadians(arc * 55))
-                .rotateZ((float) Math.toRadians(8));
+                .rotateY((float) Math.toRadians(-12 - arc * 14))
+                .rotateX((float) Math.toRadians(arc * 50))
+                .rotateZ((float) Math.toRadians(8 - arc * 30));
 
         // First person shows only the arm — a single forearm cuboid anchored at the
         // wrist, extending down-right out of frame. (The held item shows in 3rd person.)
         Matrix4f arm = new Matrix4f(hand)
                 .rotateZ((float) Math.toRadians(38))
                 .rotateX((float) Math.toRadians(18));
-        int A = Tiles.ARM_SKIN;
-        box(arm, -0.07f, -0.62f, -0.07f, 0.14f, 0.62f, 0.14f, A, A, A, A, A, A);
+        int A = Tiles.ARM_SKIN, H = Tiles.ARM_HAND;
+        // faces: top, bottom, north, south, west, east — caps are the fist (skin), sides skin+cuff
+        box(arm, -0.07f, -0.62f, -0.07f, 0.14f, 0.62f, 0.14f, H, H, A, A, A, A);
 
         if (verts.size() == 0) return;
 

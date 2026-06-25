@@ -57,6 +57,7 @@ public class UI {
     public final Font font = new Font();
 
     public int screenW, screenH;   // virtual pixels
+    private int fbHeight;           // real framebuffer height (for scissor)
 
     public UI(int atlasTex) {
         this.atlasTex = atlasTex;
@@ -71,6 +72,7 @@ public class UI {
     }
 
     public void begin(int fbWidth, int fbHeight) {
+        this.fbHeight = fbHeight;
         screenW = fbWidth / craft.Settings.guiScale;
         screenH = fbHeight / craft.Settings.guiScale;
         glDisable(GL_DEPTH_TEST);
@@ -86,6 +88,21 @@ public class UI {
         glEnable(GL_DEPTH_TEST);
         glEnable(GL_CULL_FACE);
         glDisable(GL_BLEND);
+    }
+
+    /**
+     * Restricts subsequent draws to the given virtual-pixel rectangle (e.g. a scroll viewport).
+     * Coords are virtual pixels; converted to framebuffer pixels for glScissor (origin
+     * bottom-left). Call {@link #popClip()} when done. Safe because UI flushes per primitive.
+     */
+    public void pushClip(float x, float y, float w, float h) {
+        int sc = craft.Settings.guiScale;
+        glEnable(GL_SCISSOR_TEST);
+        glScissor((int) (x * sc), fbHeight - (int) ((y + h) * sc), (int) (w * sc), (int) (h * sc));
+    }
+
+    public void popClip() {
+        glDisable(GL_SCISSOR_TEST);
     }
 
     // ---------- primitives ----------

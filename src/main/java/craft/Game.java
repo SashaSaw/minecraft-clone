@@ -14,6 +14,7 @@ import craft.render.WorldRenderer;
 import craft.ui.Hud;
 import craft.ui.Screen;
 import craft.ui.UI;
+import craft.ui.WikiPanel;
 import craft.world.Block;
 import craft.world.Chunk;
 import craft.world.SaveManager;
@@ -37,7 +38,7 @@ public class Game {
     private static final double TICK = 1.0 / 20.0;
     private static final float BASE_FOV = 70f;
 
-    private enum State {TITLE, WORLDS, CREATE, RENAME, CONFIRM_DELETE, SETTINGS, CONTROLS, PLAYING}
+    private enum State {TITLE, WORLDS, CREATE, RENAME, CONFIRM_DELETE, SETTINGS, CONTROLS, WIKI, PLAYING}
 
     private enum View {FIRST, THIRD_BACK, THIRD_FRONT}
 
@@ -76,6 +77,7 @@ public class Game {
     private int renderDist = 8;
     private float fovBoost;
     private boolean showDebug;
+    private float wikiScroll, wikiMaxScroll;
     private View perspective = View.FIRST;
     private boolean wasDead;
     private int spawnX, spawnY, spawnZ;
@@ -126,6 +128,9 @@ public class Game {
         } else if ("controls".equals(System.getProperty("craft.menu"))) {
             openSettings();
             state = State.CONTROLS;
+        } else if ("wiki".equals(System.getProperty("craft.menu"))) {
+            openSettings();
+            performAction("wiki");
         } else if ("create".equals(System.getProperty("craft.menu"))) {
             performAction("createScreen");
         }
@@ -340,9 +345,12 @@ public class Game {
                 btns.add(new MenuButton("worlds", "CANCEL", cx - w / 2, y + 30, w, h, true));
             }
             case SETTINGS -> {
-                btns.add(new MenuButton("controls", "CONTROLS", cx - w / 2, ui.screenH / 2f + 32, w, h, true));
+                float hw = (w - 8) / 2;
+                btns.add(new MenuButton("wiki", "WIKI", cx - w / 2, ui.screenH / 2f + 32, hw, h, true));
+                btns.add(new MenuButton("controls", "CONTROLS", cx + 4, ui.screenH / 2f + 32, hw, h, true));
                 btns.add(new MenuButton("settingsdone", "DONE", cx - w / 2, ui.screenH / 2f + 62, w, h, true));
             }
+            case WIKI -> btns.add(new MenuButton("wikidone", "BACK", cx - w / 2, ui.screenH - 26, w, h, true));
             case CONTROLS -> {
                 Keybinds.Action[] acts = Keybinds.Action.values();
                 for (int i = 0; i < acts.length; i++) {
@@ -425,6 +433,11 @@ public class Game {
             }
             case "settings" -> openSettings();
             case "settingsdone" -> closeSettings();
+            case "wiki" -> {
+                wikiScroll = 0;
+                state = State.WIKI;
+            }
+            case "wikidone" -> state = State.SETTINGS;
             case "controls" -> {
                 listening = null;
                 state = State.CONTROLS;
@@ -570,11 +583,19 @@ public class Game {
                         state = State.WORLDS;
                     }
                     case SETTINGS -> closeSettings();
-                    case CONTROLS -> state = State.SETTINGS;
+                    case CONTROLS, WIKI -> state = State.SETTINGS;
                     case PLAYING -> setPaused(false);
                     default -> {
                     }
                 }
+            } else if (state == State.WIKI) {
+                if (key == GLFW_KEY_DOWN) wikiScroll += 24;
+                else if (key == GLFW_KEY_UP) wikiScroll -= 24;
+                else if (key == GLFW_KEY_PAGE_DOWN) wikiScroll += 140;
+                else if (key == GLFW_KEY_PAGE_UP) wikiScroll -= 140;
+                else if (key == GLFW_KEY_HOME) wikiScroll = 0;
+                else if (key == GLFW_KEY_END) wikiScroll = wikiMaxScroll;
+                wikiScroll = Math.max(0, Math.min(wikiMaxScroll, wikiScroll));
             } else if (typing && key == GLFW_KEY_BACKSPACE) {
                 StringBuilder field = focusedField == 0 || state == State.RENAME ? nameField : seedField;
                 if (field.length() > 0) field.setLength(field.length() - 1);
@@ -625,6 +646,11 @@ public class Game {
                 Settings.save();
                 activeSlider = null;
             }
+        }
+
+        if (state == State.WIKI) {
+            wikiScroll -= (float) input.consumeScroll() * 22f;
+            wikiScroll = Math.max(0, Math.min(wikiMaxScroll, wikiScroll));
         }
 
         input.consumeMouseDelta();
@@ -920,6 +946,7 @@ public class Game {
             }
             case SETTINGS -> drawSettingsPanel();
             case CONTROLS -> drawControlsPanel(cx);
+            case WIKI -> drawWikiPanel(cx);
             default -> {
             }
         }
@@ -955,6 +982,30 @@ public class Game {
             ui.rect(s.x, s.y, s.w, 12, 0.25f, 0.25f, 0.25f, 1f);
             float hx = s.x + sliderValue(s.id) * (s.w - 8);
             ui.rect(hx, s.y - 2, 8, 16, 0.85f, 0.85f, 0.85f, 1f);
+        }
+    }
+
+    private void drawWikiPanel(float cx) {
+        ui.textCenteredScaled("WIKI", cx, 8, 2, 1, 1, 1);
+        float width = Math.min(300, ui.screenW - 40);
+        float left = cx - width / 2f;
+        float top = 34, bottom = ui.screenH - 32;
+        float viewH = bottom - top;
+
+        ui.pushClip(left, top, width + 8, viewH);
+        float contentH = WikiPanel.render(ui, left, top, width, wikiScroll);
+        ui.popClip();
+
+        wikiMaxScroll = Math.max(0, contentH - viewH);
+        if (wikiScroll > wikiMaxScroll) wikiScroll = wikiMaxScroll;
+
+        // scrollbar
+        if (wikiMaxScroll > 0) {
+            float barX = left + width + 3;
+            ui.rect(barX, top, 3, viewH, 0.1f, 0.1f, 0.1f, 0.6f);
+            float thumbH = Math.max(14, viewH * viewH / contentH);
+            float ty = top + (viewH - thumbH) * (wikiScroll / wikiMaxScroll);
+            ui.rect(barX, ty, 3, thumbH, 0.75f, 0.75f, 0.75f, 1f);
         }
     }
 
@@ -1056,6 +1107,8 @@ public class Game {
                 drawSettingsPanel();
             } else if (state == State.CONTROLS) {
                 drawControlsPanel(ui.screenW / 2f);
+            } else if (state == State.WIKI) {
+                drawWikiPanel(ui.screenW / 2f);
             } else {
                 ui.textCenteredScaled("GAME PAUSED", ui.screenW / 2f, ui.screenH / 2f - 70, 2, 1, 1, 1);
             }

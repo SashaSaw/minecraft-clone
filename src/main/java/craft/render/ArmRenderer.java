@@ -94,9 +94,14 @@ public class ArmRenderer {
         float f = (float) Math.sin(sp * Math.PI);              // 0 at ends, 1 mid-swing
         float f1 = (float) Math.sin(Math.sqrt(sp) * Math.PI);  // peaks earlier (snappy chop)
 
-        // walk/run bob: phase from accumulated limb-swing, intensity from walk speed
-        float walk = player.limbSwing * 2.6f;
-        float amt = Math.min(1f, player.limbSwingAmount);
+        // walk/run bob: phase from accumulated limb-swing, intensity from walk speed.
+        // Interpolate between ticks (partial) so it's smooth at the render frame rate rather
+        // than stepping at the 20 Hz tick rate.
+        float ls = player.prevLimbSwing + (player.limbSwing - player.prevLimbSwing) * partial;
+        float lsa = player.prevLimbSwingAmount
+                + (player.limbSwingAmount - player.prevLimbSwingAmount) * partial;
+        float walk = ls * 2.6f;
+        float amt = Math.min(1f, lsa);
         // vertical inertia while airborne (jumping/falling): hand lags the body's vertical move
         float airY = player.onGround ? 0f
                 : Math.max(-0.09f, Math.min(0.09f, (float) -player.vy * 0.12f));
@@ -130,12 +135,12 @@ public class ArmRenderer {
         // held item move together. NB: it is pre-multiplied (rotates about the eye), so small
         // angles move the far end of the arm a lot — keep everything small/mostly translational.
         Matrix4f root = new Matrix4f();
-        // walk/run view-bob: a figure-8 sway that grows with movement speed
+        // walk/run view-bob: a subtle figure-8 sway that grows with movement speed
         if (amt > 0.001f) {
-            root.translate((float) Math.sin(walk) * 0.06f * amt,
-                    -(float) Math.abs(Math.cos(walk)) * 0.05f * amt, 0f);
-            root.rotateZ((float) Math.toRadians(Math.sin(walk) * 4f * amt));
-            root.rotateX((float) Math.toRadians(Math.abs(Math.cos(walk)) * 3f * amt));
+            root.translate((float) Math.sin(walk) * 0.025f * amt,
+                    -(float) Math.abs(Math.cos(walk)) * 0.04f * amt, 0f);
+            root.rotateZ((float) Math.toRadians(Math.sin(walk) * 1.6f * amt));
+            root.rotateX((float) Math.toRadians(Math.abs(Math.cos(walk)) * 2.5f * amt));
         }
         // jump/fall inertia
         if (airY != 0f) root.translate(0f, airY, 0f);

@@ -28,6 +28,7 @@ public class Player extends Entity {
     // third-person body animation
     public float bodyYaw, prevBodyYaw;
     public float limbSwing, limbSwingAmount;
+    public float prevLimbSwing, prevLimbSwingAmount;
     /** Counts down each tick while the arm is mid-swing (attack/break/place). */
     public int swingTicks;
 
@@ -81,6 +82,8 @@ public class Player extends Entity {
         tickCounter++;
         rememberPosition();
         prevBodyYaw = bodyYaw;
+        prevLimbSwing = limbSwing;
+        prevLimbSwingAmount = limbSwingAmount;
         if (invulnTicks > 0) invulnTicks--;
         if (hurtFlash > 0) hurtFlash--;
         if (swingTicks > 0) swingTicks--;

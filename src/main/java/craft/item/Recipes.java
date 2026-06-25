@@ -43,10 +43,26 @@ public final class Recipes {
         tool(Item.WOOD_SWORD, P, S, "M", "M", "S");
         tool(Item.STONE_SWORD, C, S, "M", "M", "S");
         tool(Item.IRON_SWORD, I, S, "M", "M", "S");
+
+        reg(Block.CHEST, 1, "P", new int[]{P}, "PPP", "P P", "PPP");
+
+        int LE = Item.LEATHER;
+        armour(Item.LEATHER_HELMET, LE, "MMM", "M M");
+        armour(Item.LEATHER_CHESTPLATE, LE, "M M", "MMM", "MMM");
+        armour(Item.LEATHER_LEGGINGS, LE, "MMM", "M M", "M M");
+        armour(Item.LEATHER_BOOTS, LE, "M M", "M M");
+        armour(Item.IRON_HELMET, I, "MMM", "M M");
+        armour(Item.IRON_CHESTPLATE, I, "M M", "MMM", "MMM");
+        armour(Item.IRON_LEGGINGS, I, "MMM", "M M", "M M");
+        armour(Item.IRON_BOOTS, I, "M M", "M M");
     }
 
     private static void tool(int result, int material, int stick, String... pattern) {
         reg(result, 1, "MS", new int[]{material, stick}, pattern);
+    }
+
+    private static void armour(int result, int material, String... pattern) {
+        reg(result, 1, "M", new int[]{material}, pattern);
     }
 
     /**

@@ -1,5 +1,7 @@
 package craft.ui;
 
+import craft.item.Armour;
+import craft.item.ChestEntity;
 import craft.item.FurnaceEntity;
 import craft.item.Inventory;
 import craft.item.ItemStack;
@@ -180,6 +182,27 @@ public abstract class Screen {
     protected void onContentsChanged() {
     }
 
+    /** Merges/inserts a stack into an arbitrary array (mutates it + st); returns leftover count. */
+    protected static int addInto(ItemStack[] arr, ItemStack st) {
+        if (st == null) return 0;
+        for (ItemStack s : arr) {
+            if (s != null && s.canMerge(st)) {
+                int take = Math.min(s.maxStack() - s.count, st.count);
+                s.count += take;
+                st.count -= take;
+                if (st.count == 0) return 0;
+            }
+        }
+        for (int i = 0; i < arr.length; i++) {
+            if (arr[i] == null) {
+                arr[i] = st.copy();
+                st.count = 0;
+                return 0;
+            }
+        }
+        return st.count;
+    }
+
     /** Returns stacks that must be dropped into the world on close (cursor, craft grid). */
     public List<ItemStack> close() {
         List<ItemStack> out = new ArrayList<>();
@@ -208,6 +231,13 @@ public abstract class Screen {
             Slot res = new Slot(result, 0, 148, 35);
             res.resultOnly = true;
             slots.add(res);
+            // worn-armour slots down the left, each accepting only its own piece type
+            for (int i = 0; i < Armour.SLOTS; i++) {
+                final int si = i;
+                Slot a = new Slot(inv.armour, i, 8, 8 + i * 18);
+                a.accepts = id -> Armour.slot(id) == si;
+                slots.add(a);
+            }
             onContentsChanged();
         }
 
@@ -215,6 +245,23 @@ public abstract class Screen {
         protected void renderBg(UI ui, int px, int py) {
             ui.text("CRAFT", px + 97, py + 10, 0.25f, 0.25f, 0.25f);
             ui.text(">", px + 132, py + 39, 0.25f, 0.25f, 0.25f);
+        }
+
+        @Override
+        protected void quickMove(Slot s) {
+            ItemStack st = s.get();
+            if (st == null) return;
+            if (s.arr == inv.armour) {                 // unequip -> inventory
+                if (inv.add(st) == 0) s.set(null);
+                return;
+            }
+            int aslot = Armour.slot(st.id);            // equip armour from inventory
+            if (s.arr == inv.slots && aslot >= 0 && inv.armour[aslot] == null) {
+                inv.armour[aslot] = st;
+                s.set(null);
+                return;
+            }
+            super.quickMove(s);
         }
 
         @Override
@@ -393,6 +440,41 @@ public abstract class Screen {
         public List<ItemStack> close() {
             push();
             return super.close();
+        }
+    }
+
+    // ------------------------------------------------------------------
+
+    public static class ChestScreen extends Screen {
+        public final ChestEntity chest;
+
+        public ChestScreen(Inventory inv, ChestEntity chest) {
+            super(inv);
+            this.chest = chest;
+            addPlayerSlots();
+            // 27 chest slots (3 rows of 9) above the player inventory; bound directly to
+            // chest.contents so edits persist immediately
+            for (int r = 0; r < 3; r++) {
+                for (int c = 0; c < 9; c++) {
+                    slots.add(new Slot(chest.contents, r * 9 + c, 8 + c * 18, 18 + r * 18));
+                }
+            }
+        }
+
+        @Override
+        protected void renderBg(UI ui, int px, int py) {
+            ui.text("CHEST", px + 8, py + 6, 0.25f, 0.25f, 0.25f);
+        }
+
+        @Override
+        protected void quickMove(Slot s) {
+            ItemStack st = s.get();
+            if (st == null) return;
+            if (s.arr == chest.contents) {             // chest -> inventory
+                if (inv.add(st) == 0) s.set(null);
+            } else {                                   // inventory -> chest
+                if (addInto(chest.contents, st) == 0) s.set(null);
+            }
         }
     }
 }

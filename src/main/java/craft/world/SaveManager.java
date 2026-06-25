@@ -1,5 +1,6 @@
 package craft.world;
 
+import craft.item.ChestEntity;
 import craft.item.FurnaceEntity;
 import craft.item.ItemStack;
 import craft.player.Player;
@@ -19,7 +20,7 @@ import java.util.zip.GZIPOutputStream;
  * Unmodified chunks regenerate from the seed. Entities are not persisted.
  */
 public class SaveManager {
-    private static final int LEVEL_VERSION = 2;   // v2 adds the seed to level.dat
+    private static final int LEVEL_VERSION = 3;   // v2 adds the seed; v3 adds armour + chests
     private final File dir;
 
     public SaveManager(File dir) {
@@ -146,6 +147,9 @@ public class SaveManager {
                 out.writeInt(s == null ? -1 : s.id);
                 out.writeInt(s == null ? 0 : s.count);
             }
+            for (ItemStack s : player.inventory.armour) {
+                writeStack(out, s);
+            }
             out.writeInt(world.furnaces.size());
             for (FurnaceEntity f : world.furnaces.values()) {
                 out.writeInt(f.x);
@@ -157,6 +161,14 @@ public class SaveManager {
                 out.writeInt(f.burnTime);
                 out.writeInt(f.burnTotal);
                 out.writeInt(f.cookTime);
+            }
+            out.writeInt(world.chests.size());
+            for (ChestEntity c : world.chests.values()) {
+                out.writeInt(c.x);
+                out.writeInt(c.y);
+                out.writeInt(c.z);
+                out.writeInt(c.contents.length);
+                for (ItemStack s : c.contents) writeStack(out, s);
             }
         } catch (IOException e) {
             System.err.println("Failed to save level: " + e);
@@ -190,6 +202,11 @@ public class SaveManager {
                 int count = in.readInt();
                 player.inventory.slots[i] = id < 0 ? null : new ItemStack(id, count);
             }
+            if (version >= 3) {
+                for (int i = 0; i < player.inventory.armour.length; i++) {
+                    player.inventory.armour[i] = readStack(in);
+                }
+            }
             int nf = in.readInt();
             for (int i = 0; i < nf; i++) {
                 FurnaceEntity fe = new FurnaceEntity(in.readInt(), in.readInt(), in.readInt());
@@ -200,6 +217,17 @@ public class SaveManager {
                 fe.burnTotal = in.readInt();
                 fe.cookTime = in.readInt();
                 world.furnaces.put(World.posKey(fe.x, fe.y, fe.z), fe);
+            }
+            if (version >= 3) {
+                int nc = in.readInt();
+                for (int i = 0; i < nc; i++) {
+                    ChestEntity ce = new ChestEntity(in.readInt(), in.readInt(), in.readInt());
+                    int n = in.readInt();
+                    for (int j = 0; j < n && j < ce.contents.length; j++) {
+                        ce.contents[j] = readStack(in);
+                    }
+                    world.chests.put(World.posKey(ce.x, ce.y, ce.z), ce);
+                }
             }
             return spawn;
         } catch (IOException e) {

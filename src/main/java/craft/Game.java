@@ -743,6 +743,9 @@ public class Game {
                 } else if (interaction.openContainer == Block.FURNACE) {
                     openScreen(new Screen.FurnaceScreen(player.inventory,
                             world.furnaceAt(interaction.containerX, interaction.containerY, interaction.containerZ)));
+                } else if (interaction.openContainer == Block.CHEST) {
+                    openScreen(new Screen.ChestScreen(player.inventory,
+                            world.chestAt(interaction.containerX, interaction.containerY, interaction.containerZ)));
                 }
             }
             if (!wasDead && player.dead) {
@@ -772,6 +775,14 @@ public class Game {
         inv.add(new craft.item.ItemStack(Block.OAK_PLANKS, 32));
         inv.add(new craft.item.ItemStack(craft.item.Item.IRON_PICKAXE, 1));
         inv.add(new craft.item.ItemStack(craft.item.Item.COOKED_BEEF, 5));
+        inv.add(new craft.item.ItemStack(Block.CHEST, 4));
+        // equip an iron armour set + carry a leather set for the inventory/HUD demo
+        inv.armour[0] = new craft.item.ItemStack(craft.item.Item.IRON_HELMET, 1);
+        inv.armour[1] = new craft.item.ItemStack(craft.item.Item.IRON_CHESTPLATE, 1);
+        inv.armour[2] = new craft.item.ItemStack(craft.item.Item.IRON_LEGGINGS, 1);
+        inv.armour[3] = new craft.item.ItemStack(craft.item.Item.IRON_BOOTS, 1);
+        inv.add(new craft.item.ItemStack(craft.item.Item.LEATHER_HELMET, 1));
+        inv.add(new craft.item.ItemStack(craft.item.Item.LEATHER_CHESTPLATE, 1));
 
         int bx = (int) Math.floor(player.x), bz = (int) Math.floor(player.z);
         int ground = world.surfaceY(bx, bz + 3);
@@ -798,6 +809,14 @@ public class Game {
             world.setBlock(bx, ground + 1, bz + 4, Block.TORCH);
             world.setBlock(bx + 3, ground + 1, bz + 3, Block.CRAFTING_TABLE);
             world.setBlock(bx - 3, ground + 1, bz + 3, Block.FURNACE_LIT);
+            world.setBlock(bx, ground + 1, bz + 3, Block.CHEST);
+        } else if ("chest".equals(System.getProperty("craft.demo"))) {
+            craft.item.ChestEntity c = world.chestAt(bx, 100, bz);
+            c.contents[0] = new craft.item.ItemStack(Block.COBBLESTONE, 64);
+            c.contents[1] = new craft.item.ItemStack(craft.item.Item.IRON_INGOT, 12);
+            c.contents[4] = new craft.item.ItemStack(craft.item.Item.IRON_SWORD, 1);
+            c.contents[13] = new craft.item.ItemStack(craft.item.Item.COOKED_BEEF, 8);
+            openScreen(new Screen.ChestScreen(inv, c));
         } else {
             openScreen(new Screen.InventoryScreen(inv));
         }

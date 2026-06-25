@@ -17,7 +17,7 @@ public class ItemStack {
     }
 
     public boolean stackable() {
-        return item().tool == Item.Tool.NONE;
+        return item().tool == Item.Tool.NONE && !Armour.isArmour(id);
     }
 
     public int maxStack() {

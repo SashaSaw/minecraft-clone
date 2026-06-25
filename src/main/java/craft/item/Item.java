@@ -41,6 +41,14 @@ public class Item {
     public static final int FEATHER = 59;
     public static final int LEATHER = 60;
     public static final int WOOL = 61;   // placeable? kept as item for simplicity
+    public static final int LEATHER_HELMET = 62;
+    public static final int LEATHER_CHESTPLATE = 63;
+    public static final int LEATHER_LEGGINGS = 64;
+    public static final int LEATHER_BOOTS = 65;
+    public static final int IRON_HELMET = 66;
+    public static final int IRON_CHESTPLATE = 67;
+    public static final int IRON_LEGGINGS = 68;
+    public static final int IRON_BOOTS = 69;
 
     public static final Item[] REGISTRY = new Item[128];
 
@@ -116,5 +124,14 @@ public class Item {
         reg(FEATHER, "feather", Tiles.ICON_FEATHER, Tool.NONE, 0, 0, 0);
         reg(LEATHER, "leather", Tiles.ICON_LEATHER, Tool.NONE, 0, 0, 0);
         reg(WOOL, "wool", Tiles.ICON_WOOL, Tool.NONE, 0, 0, 0);
+
+        reg(LEATHER_HELMET, "leather_helmet", Tiles.ICON_LEATHER_HELMET, Tool.NONE, 0, 0, 0);
+        reg(LEATHER_CHESTPLATE, "leather_chestplate", Tiles.ICON_LEATHER_CHESTPLATE, Tool.NONE, 0, 0, 0);
+        reg(LEATHER_LEGGINGS, "leather_leggings", Tiles.ICON_LEATHER_LEGGINGS, Tool.NONE, 0, 0, 0);
+        reg(LEATHER_BOOTS, "leather_boots", Tiles.ICON_LEATHER_BOOTS, Tool.NONE, 0, 0, 0);
+        reg(IRON_HELMET, "iron_helmet", Tiles.ICON_IRON_HELMET, Tool.NONE, 0, 0, 0);
+        reg(IRON_CHESTPLATE, "iron_chestplate", Tiles.ICON_IRON_CHESTPLATE, Tool.NONE, 0, 0, 0);
+        reg(IRON_LEGGINGS, "iron_leggings", Tiles.ICON_IRON_LEGGINGS, Tool.NONE, 0, 0, 0);
+        reg(IRON_BOOTS, "iron_boots", Tiles.ICON_IRON_BOOTS, Tool.NONE, 0, 0, 0);
     }
 }

@@ -11,7 +11,6 @@ import java.nio.FloatBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -124,14 +123,12 @@ public class WorldRenderer {
         // schedule dirty sections whose chunks are meshable, nearest player first
         if (!world.dirtySections.isEmpty() && inFlight.size() < 12) {
             List<Long> ready = new ArrayList<>();
-            Iterator<Long> it = world.dirtySections.iterator();
-            while (it.hasNext()) {
-                long key = it.next();
+            for (long key : world.dirtySections) {
                 int cx = World.sectionKeyX(key), cz = World.sectionKeyZ(key);
-                if (Math.max(Math.abs(cx - pcx), Math.abs(cz - pcz)) > renderDist) {
-                    it.remove();   // out of render range; drop (will redirty on load)
-                    continue;
-                }
+                // Don't drop out-of-range sections: chunks decorate (and dirty) out to
+                // renderDist+1, so a section can be dirtied while just outside renderDist and
+                // would never be re-dirtied once it scrolls into view. Leave it dirty until it
+                // becomes meshable and in range; World clears dirty sections when chunks unload.
                 if (!inFlight.contains(key) && world.isMeshable(cx, cz)) ready.add(key);
             }
             ready.sort((a, b) -> {

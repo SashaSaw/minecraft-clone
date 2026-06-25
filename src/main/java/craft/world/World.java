@@ -248,6 +248,9 @@ public class World {
                     if (c.modified && save != null) save.saveChunk(c);
                     chunks.remove(chunkKey(c.cx, c.cz));
                     unloadedChunks.add(c);
+                    for (int sy = 0; sy < Chunk.SECTIONS; sy++) {
+                        dirtySections.remove(sectionKey(c.cx, sy, c.cz));
+                    }
                 }
             }
         }

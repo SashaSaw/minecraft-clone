@@ -94,10 +94,17 @@ public class ArmRenderer {
         float f = (float) Math.sin(sp * Math.PI);              // 0 at ends, 1 mid-swing
         float f1 = (float) Math.sin(Math.sqrt(sp) * Math.PI);  // peaks earlier (snappy chop)
 
+        // walk/run bob: phase from accumulated limb-swing, intensity from walk speed
+        float walk = player.limbSwing * 4.2f;
+        float amt = Math.min(1f, player.limbSwingAmount);
+        // vertical inertia while airborne (jumping/falling): hand lags the body's vertical move
+        float airY = player.onGround ? 0f
+                : Math.max(-0.09f, Math.min(0.09f, (float) -player.vy * 0.12f));
+
         proj.identity().perspective((float) Math.toRadians(70), aspect, 0.01f, 16f);
 
         verts.clear();
-        buildArm(player.inventory.held(), swinging, f, f1, light);
+        buildArm(player.inventory.held(), swinging, f, f1, walk, amt, airY, light);
 
         shader.bind();
         shader.setMat4("uPV", proj);
@@ -115,23 +122,33 @@ public class ArmRenderer {
         glEnable(GL_CULL_FACE);
     }
 
-    private void buildArm(ItemStack held, boolean swinging, float f, float f1, float light) {
+    private void buildArm(ItemStack held, boolean swinging, float f, float f1,
+                          float walk, float amt, float airY, float light) {
         int SKIN = Tiles.PLAYER_SKIN;   // same arm texture as the third-person body model
 
-        // Shared swing arc (eye space, blocks): the whole hand layer dips and chops through
-        // the strike, so the arm and the held item move together.
-        // NB: this transform is pre-multiplied (rotates about the eye), so small angles move
-        // the far end of the arm a lot — keep the chop mostly translational.
-        Matrix4f swing = new Matrix4f();
+        // Shared root transform (eye space, blocks) for the whole hand layer, so the arm and the
+        // held item move together. NB: it is pre-multiplied (rotates about the eye), so small
+        // angles move the far end of the arm a lot — keep everything small/mostly translational.
+        Matrix4f root = new Matrix4f();
+        // walk/run view-bob: a figure-8 sway that grows with movement speed
+        if (amt > 0.001f) {
+            root.translate((float) Math.sin(walk) * 0.06f * amt,
+                    -(float) Math.abs(Math.cos(walk)) * 0.05f * amt, 0f);
+            root.rotateZ((float) Math.toRadians(Math.sin(walk) * 4f * amt));
+            root.rotateX((float) Math.toRadians(Math.abs(Math.cos(walk)) * 3f * amt));
+        }
+        // jump/fall inertia
+        if (airY != 0f) root.translate(0f, airY, 0f);
+        // attack / mining chop
         if (swinging) {
-            swing.translate(-0.04f * f1, -0.07f * f, -0.05f * f);
-            swing.rotateX((float) Math.toRadians(-12f * f1));
-            swing.rotateZ((float) Math.toRadians(5f * f));
+            root.translate(-0.04f * f1, -0.07f * f, -0.05f * f);
+            root.rotateX((float) Math.toRadians(-12f * f1));
+            root.rotateZ((float) Math.toRadians(5f * f));
         }
 
         // Shared hand anchor (eye space, blocks): the hand sits just below centre-right; the
         // forearm runs down from here off the bottom-right of the screen.
-        Matrix4f base = new Matrix4f(swing);
+        Matrix4f base = new Matrix4f(root);
         base.translate(0.34f, -0.26f, -0.78f);
 
         // --- forearm: a long 4x4 cuboid (same cross-section as the third-person arm). The
@@ -149,6 +166,7 @@ public class ArmRenderer {
         Item it = held.item();
         Matrix4f hand = new Matrix4f(base);
         hand.scale(1f / 16f);
+        // (held item shares `base`, so it bobs/swings with the arm)
         // a full cube block renders as a 3D cube; everything else (tools, food, flowers and
         // other CROSS "blocks" like saplings/torches) renders as a flat sprite, matching the
         // hotbar icon rule

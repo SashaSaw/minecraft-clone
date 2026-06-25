@@ -95,7 +95,7 @@ public class ArmRenderer {
         float f1 = (float) Math.sin(Math.sqrt(sp) * Math.PI);  // peaks earlier (snappy chop)
 
         // walk/run bob: phase from accumulated limb-swing, intensity from walk speed
-        float walk = player.limbSwing * 4.2f;
+        float walk = player.limbSwing * 2.6f;
         float amt = Math.min(1f, player.limbSwingAmount);
         // vertical inertia while airborne (jumping/falling): hand lags the body's vertical move
         float airY = player.onGround ? 0f

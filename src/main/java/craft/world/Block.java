@@ -34,6 +34,7 @@ public final class Block {
     public static final byte CRAFTING_TABLE = 20;
     public static final byte FURNACE = 21;
     public static final byte FURNACE_LIT = 22;
+    public static final byte CHEST = 23;
 
     public static final Block[] REGISTRY = new Block[32];
 
@@ -129,6 +130,8 @@ public final class Block {
                 Tiles.FURNACE_TOP, Tiles.FURNACE_FRONT, Tiles.FURNACE_TOP);
         reg(FURNACE_LIT, "lit_furnace", Layer.SOLID, true, true, 15, 13, 3.5f, false, Tool.PICKAXE, true,
                 Tiles.FURNACE_TOP, Tiles.FURNACE_FRONT_LIT, Tiles.FURNACE_TOP);
+        reg(CHEST, "chest", Layer.SOLID, true, true, 15, 0, 2.5f, false, Tool.AXE, false,
+                Tiles.CHEST_TOP, Tiles.CHEST_FRONT, Tiles.CHEST_TOP);
     }
 
     /** True if a plant/water can replace this block when placing/decorating. */

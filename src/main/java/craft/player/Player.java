@@ -198,6 +198,7 @@ public class Player extends Entity {
 
     public void damage(int amount) {
         if (dead || invulnTicks > 0) return;
+        amount = craft.item.Armour.reduce(amount, inventory.armour);
         hp -= amount;
         invulnTicks = 10;
         hurtFlash = 10;

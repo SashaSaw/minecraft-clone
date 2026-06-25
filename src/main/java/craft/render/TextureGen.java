@@ -41,9 +41,11 @@ public class TextureGen {
         torch();
         craftingTable();
         furnace();
+        chest();
         wool();
         cracks();
         icons();
+        armourIcons();
         mobSkins();
         playerSkin();
         atlasTex = upload(atlas, Tiles.ATLAS_PX, Tiles.ATLAS_PX);
@@ -354,6 +356,98 @@ public class TextureGen {
 
     private void clearTile(int tile) {
         for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) px(tile, x, y, 0, 0);
+    }
+
+    // ---------- chest ----------
+
+    private void chest() {
+        chestFace(Tiles.CHEST_TOP, false, false);
+        chestFace(Tiles.CHEST_SIDE, true, false);
+        chestFace(Tiles.CHEST_FRONT, true, true);
+    }
+
+    /** Wooden chest face: noisy oak with a dark frame; sides/front get a lid seam, front a latch. */
+    private void chestFace(int tile, boolean lidSeam, boolean latch) {
+        int wood = 0xA6753F, dark = 0x5E3F22;
+        Random r = rng(tile);
+        noiseFill(tile, wood, 0.08, r);
+        for (int i = 0; i < 16; i++) {
+            px(tile, i, 0, dark);
+            px(tile, i, 15, dark);
+            px(tile, 0, i, dark);
+            px(tile, 15, i, dark);
+        }
+        if (lidSeam) {
+            for (int x = 0; x < 16; x++) px(tile, x, 5, dark);
+            for (int x = 0; x < 16; x++) px(tile, x, 6, mul(wood, 0.85));
+        }
+        if (latch) {
+            int iron = 0xA8A8A8, ironDark = 0x4A4A4A;
+            for (int y = 4; y <= 8; y++) for (int x = 7; x <= 9; x++) px(tile, x, y, iron);
+            px(tile, 8, 6, ironDark);   // keyhole
+            px(tile, 8, 7, ironDark);
+        }
+    }
+
+    // ---------- armour icons ----------
+
+    private void armourIcons() {
+        int leMain = 0x9A6B43, leShade = 0x6E4A2A;
+        int irMain = 0xCDCDCD, irShade = 0x8F8F8F;
+        armourPiece(Tiles.ICON_LEATHER_HELMET, 0, leMain, leShade);
+        armourPiece(Tiles.ICON_LEATHER_CHESTPLATE, 1, leMain, leShade);
+        armourPiece(Tiles.ICON_LEATHER_LEGGINGS, 2, leMain, leShade);
+        armourPiece(Tiles.ICON_LEATHER_BOOTS, 3, leMain, leShade);
+        armourPiece(Tiles.ICON_IRON_HELMET, 0, irMain, irShade);
+        armourPiece(Tiles.ICON_IRON_CHESTPLATE, 1, irMain, irShade);
+        armourPiece(Tiles.ICON_IRON_LEGGINGS, 2, irMain, irShade);
+        armourPiece(Tiles.ICON_IRON_BOOTS, 3, irMain, irShade);
+        // HUD bar glyphs (a bright chestplate; half = left half only)
+        armourPiece(Tiles.ICON_ARMOUR, 1, 0xE2E2E2, 0x9C9C9C);
+        armourPiece(Tiles.ICON_ARMOUR_HALF, 1, 0xE2E2E2, 0x9C9C9C);
+        for (int y = 0; y < 16; y++) for (int x = 8; x < 16; x++) px(Tiles.ICON_ARMOUR_HALF, x, y, 0, 0);
+    }
+
+    private void arow(int tile, int x0, int x1, int y, int c) {
+        for (int x = x0; x <= x1; x++) px(tile, x, y, c);
+    }
+
+    /** type: 0 helmet, 1 chestplate, 2 leggings, 3 boots. */
+    private void armourPiece(int tile, int type, int main, int shade) {
+        clearTile(tile);
+        switch (type) {
+            case 0 -> {   // helmet dome with cheek guards
+                arow(tile, 5, 10, 4, main);
+                arow(tile, 4, 11, 5, main);
+                arow(tile, 4, 11, 6, main);
+                arow(tile, 4, 11, 7, main);
+                arow(tile, 4, 11, 8, shade);
+                px(tile, 4, 9, main); px(tile, 5, 9, main);
+                px(tile, 10, 9, main); px(tile, 11, 9, main);
+            }
+            case 1 -> {   // chestplate
+                px(tile, 4, 4, main); px(tile, 5, 4, main);
+                px(tile, 10, 4, main); px(tile, 11, 4, main);
+                arow(tile, 3, 12, 5, main);
+                for (int y = 6; y <= 10; y++) arow(tile, 4, 11, y, main);
+                arow(tile, 4, 11, 11, shade);
+                arow(tile, 5, 10, 12, shade);
+            }
+            case 2 -> {   // leggings
+                arow(tile, 4, 11, 5, main);
+                arow(tile, 4, 11, 6, main);
+                for (int y = 7; y <= 12; y++) {
+                    arow(tile, 4, 6, y, y == 12 ? shade : main);
+                    arow(tile, 9, 11, y, y == 12 ? shade : main);
+                }
+            }
+            case 3 -> {   // boots
+                arow(tile, 4, 6, 9, main); arow(tile, 9, 11, 9, main);
+                arow(tile, 3, 6, 10, main); arow(tile, 9, 12, 10, main);
+                arow(tile, 3, 7, 11, main); arow(tile, 8, 12, 11, main);
+                arow(tile, 3, 7, 12, shade); arow(tile, 8, 12, 12, shade);
+            }
+        }
     }
 
     private void torch() {

@@ -91,8 +91,10 @@ public class Interaction {
         // open containers (unless sneaking)
         if (target != null && !player.sneaking) {
             byte tb = world.getBlock(target.x, target.y, target.z);
-            if (tb == Block.CRAFTING_TABLE || tb == Block.FURNACE || tb == Block.FURNACE_LIT) {
-                openContainer = tb == Block.CRAFTING_TABLE ? Block.CRAFTING_TABLE : Block.FURNACE;
+            if (tb == Block.CRAFTING_TABLE || tb == Block.FURNACE || tb == Block.FURNACE_LIT
+                    || tb == Block.CHEST) {
+                openContainer = tb == Block.CRAFTING_TABLE ? Block.CRAFTING_TABLE
+                        : tb == Block.CHEST ? Block.CHEST : Block.FURNACE;
                 containerX = target.x;
                 containerY = target.y;
                 containerZ = target.z;
@@ -191,6 +193,13 @@ public class Interaction {
                 spawnDrop(world, x, y, z, f.input);
                 spawnDrop(world, x, y, z, f.fuel);
                 spawnDrop(world, x, y, z, f.output);
+            }
+        }
+        // chest spills its contents
+        if (b.id == Block.CHEST) {
+            craft.item.ChestEntity c = world.chests.remove(World.posKey(x, y, z));
+            if (c != null) {
+                for (ItemStack s : c.contents) spawnDrop(world, x, y, z, s);
             }
         }
         world.setBlock(x, y, z, Block.AIR);

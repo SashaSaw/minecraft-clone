@@ -1,8 +1,10 @@
 package craft.item;
 
-/** 36 slots: 0-8 hotbar, 9-35 main grid. */
+/** 36 slots: 0-8 hotbar, 9-35 main grid. Plus 4 worn-armour slots. */
 public class Inventory {
     public final ItemStack[] slots = new ItemStack[36];
+    /** Equipped armour: [helmet, chestplate, leggings, boots] (see craft.item.Armour). */
+    public final ItemStack[] armour = new ItemStack[Armour.SLOTS];
     public int selected;
 
     public ItemStack held() {

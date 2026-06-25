@@ -1,5 +1,6 @@
 package craft.ui;
 
+import craft.item.Armour;
 import craft.item.ItemStack;
 import craft.player.Player;
 import craft.render.Tiles;
@@ -40,6 +41,17 @@ public class Hud {
             else if (v == 1) tile = Tiles.ICON_HEART_HALF;
             else tile = Tiles.ICON_HEART_EMPTY;
             ui.tile(tile, hbX - 1 + i * 9, rowY, 9, 9);
+        }
+
+        // armour points (above the hearts, left side) when wearing any armour
+        int armourPts = Armour.totalPoints(p.inventory.armour);
+        if (armourPts > 0) {
+            int aY = rowY - 10;
+            int icons = (armourPts + 1) / 2;
+            for (int i = 0; i < icons; i++) {
+                int tile = armourPts >= (i + 1) * 2 ? Tiles.ICON_ARMOUR : Tiles.ICON_ARMOUR_HALF;
+                ui.tile(tile, hbX - 1 + i * 9, aY, 9, 9);
+            }
         }
 
         // hunger (right side, fills right-to-left like vanilla)

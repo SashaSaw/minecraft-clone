@@ -95,6 +95,25 @@ public final class Tiles {
     public static final int PLAYER_SHIRT = 98;
     public static final int PLAYER_PANTS = 99;
 
+    // chest block
+    public static final int CHEST_TOP = 100;
+    public static final int CHEST_FRONT = 101;
+    public static final int CHEST_SIDE = 102;
+
+    // armour icons
+    public static final int ICON_LEATHER_HELMET = 103;
+    public static final int ICON_LEATHER_CHESTPLATE = 104;
+    public static final int ICON_LEATHER_LEGGINGS = 105;
+    public static final int ICON_LEATHER_BOOTS = 106;
+    public static final int ICON_IRON_HELMET = 107;
+    public static final int ICON_IRON_CHESTPLATE = 108;
+    public static final int ICON_IRON_LEGGINGS = 109;
+    public static final int ICON_IRON_BOOTS = 110;
+
+    // armour HUD bar
+    public static final int ICON_ARMOUR = 111;
+    public static final int ICON_ARMOUR_HALF = 112;
+
     public static final int ATLAS_TILES = 16;     // tiles per row
     public static final int TILE_PX = 16;
     public static final int ATLAS_PX = ATLAS_TILES * TILE_PX;

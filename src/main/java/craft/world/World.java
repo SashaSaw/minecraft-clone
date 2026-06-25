@@ -39,6 +39,8 @@ public class World {
     public final List<Chunk> freshlyDecorated = new ArrayList<>();
     /** Furnace block state by packed position. */
     public final java.util.HashMap<Long, craft.item.FurnaceEntity> furnaces = new java.util.HashMap<>();
+    /** Chest contents by packed position. */
+    public final java.util.HashMap<Long, craft.item.ChestEntity> chests = new java.util.HashMap<>();
 
     private int[][] sortedOffsets;   // {dx, dz} sorted by distance
     private int sortedRadius = -1;
@@ -161,6 +163,10 @@ public class World {
 
     public craft.item.FurnaceEntity furnaceAt(int x, int y, int z) {
         return furnaces.computeIfAbsent(posKey(x, y, z), k -> new craft.item.FurnaceEntity(x, y, z));
+    }
+
+    public craft.item.ChestEntity chestAt(int x, int y, int z) {
+        return chests.computeIfAbsent(posKey(x, y, z), k -> new craft.item.ChestEntity(x, y, z));
     }
 
     /** Saves all currently loaded player-modified chunks. */

@@ -4,6 +4,7 @@ import craft.entity.Entity;
 import craft.entity.ItemEntity;
 import craft.entity.MobSpawner;
 import craft.player.Player;
+import craft.render.ArmRenderer;
 import craft.render.MobRenderer;
 import craft.render.OverlayRenderer;
 import craft.render.Sky;
@@ -50,6 +51,7 @@ public class Game {
     private Sky sky;
     private OverlayRenderer overlays;
     private MobRenderer mobRenderer;
+    private ArmRenderer armRenderer;
     private UI ui;
     private Hud hud;
 
@@ -110,6 +112,7 @@ public class Game {
         sky = new Sky(textures.sunTex, textures.moonTex);
         overlays = new OverlayRenderer(atlasTex);
         mobRenderer = new MobRenderer(atlasTex);
+        armRenderer = new ArmRenderer(atlasTex);
         ui = new UI(atlasTex);
         hud = new Hud();
 
@@ -1032,6 +1035,10 @@ public class Game {
         }
 
         renderer.renderWater(camPos);
+
+        if (perspective == View.FIRST && !player.dead && screen == null) {
+            armRenderer.render(aspect, world, player, dayLight, partial);
+        }
 
         // 2D overlay
         ui.begin(window.fbWidth, window.fbHeight);

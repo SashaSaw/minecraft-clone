@@ -1134,5 +1134,12 @@ public class Game {
             drawMenuButtons(currentButtons(), mouseUiX(), mouseUiY());
         }
         ui.end();
+
+        // mini player model in the inventory, wearing equipped armour, head tracking the mouse
+        if (screen instanceof Screen.InventoryScreen invs) {
+            int px = invs.panelX(ui), py = invs.panelY(ui);
+            mobRenderer.renderGuiPlayer(ui.screenW, ui.screenH, px + 47, py + 76, 27f,
+                    player.inventory, mouseUiX(), mouseUiY());
+        }
     }
 }

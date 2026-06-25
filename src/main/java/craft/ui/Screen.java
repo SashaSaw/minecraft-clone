@@ -81,9 +81,27 @@ public abstract class Screen {
                 ui.rect(px + s.x, py + s.y, 16, 16, 1, 1, 1, 0.35f);
             }
         }
+        // hovered item name, shown just above the slot (only when not dragging an item)
+        if (cursor == null) {
+            for (Slot s : slots) {
+                if (hovered(s, px, py, mouseX, mouseY) && s.get() != null) {
+                    String name = prettyName(s.get().item().name);
+                    float tw = Font.width(name);
+                    float tx = px + s.x + 8 - tw / 2f;
+                    float ty = py + s.y - 11;
+                    ui.rect(tx - 3, ty - 2, tw + 6, 12, 0.05f, 0.05f, 0.05f, 0.9f);
+                    ui.text(name, tx, ty, 1, 1, 1);
+                    break;
+                }
+            }
+        }
         if (cursor != null) {
             ui.itemStack(cursor, mouseX - 8, mouseY - 8);
         }
+    }
+
+    static String prettyName(String name) {
+        return name.replace('_', ' ');   // Font renders uppercase
     }
 
     protected abstract void renderBg(UI ui, int px, int py);
@@ -262,6 +280,21 @@ public abstract class Screen {
                 return;
             }
             super.quickMove(s);
+        }
+
+        @Override
+        protected void onSlotClick(Slot s, int button, boolean shift) {
+            // right-click an armour item (not in an armour slot) to wear it
+            if (button == 1 && !shift && cursor == null && s.get() != null
+                    && s.arr != inv.armour && !s.resultOnly) {
+                int aslot = Armour.slot(s.get().id);
+                if (aslot >= 0 && inv.armour[aslot] == null) {
+                    inv.armour[aslot] = s.get();
+                    s.set(null);
+                    return;
+                }
+            }
+            super.onSlotClick(s, button, shift);
         }
 
         @Override

@@ -4,6 +4,8 @@ import craft.entity.Animals;
 import craft.entity.Entity;
 import craft.entity.Mob;
 import craft.entity.Zombie;
+import craft.item.Armour;
+import craft.item.Inventory;
 import craft.item.Item;
 import craft.item.ItemStack;
 import craft.player.Player;
@@ -197,6 +199,97 @@ public class MobRenderer {
             int t = it.icon;
             box(6, 22, 0, armPitch, 0, -2, -17, -8, 4, 8, 1, t, t, t, t, t, t);
         }
+    }
+
+    /**
+     * Renders the player as a small box model inside the inventory GUI, wearing whatever armour
+     * is equipped, with the head turned to track the mouse cursor. Uses an orthographic screen
+     * projection; call after the 2D UI has been drawn for the frame. {@code feetY} is the model's
+     * baseline in virtual pixels, {@code pxPerBlock} its scale.
+     */
+    public void renderGuiPlayer(int screenW, int screenH, float cx, float feetY, float pxPerBlock,
+                                Inventory inv, float mouseX, float mouseY) {
+        float headScreenY = feetY - pxPerBlock * 1.6f;
+        float headYaw = clampf((mouseX - cx) * 0.012f, -0.85f, 0.85f);
+        float headPitch = clampf(-(mouseY - headScreenY) * 0.012f, -0.9f, 0.6f);
+
+        ex = ey = ez = 0;
+        bodyYawSin = 0;
+        bodyYawCos = 1;
+        light = 1f;
+
+        Matrix4f pv = new Matrix4f().ortho(0, screenW, screenH, 0, -1000, 1000);
+        pv.translate(cx, feetY, 0);
+        pv.scale(pxPerBlock, -pxPerBlock, pxPerBlock);   // blocks -> px, +Y up on screen
+        pv.rotateY((float) Math.PI + headYaw * 0.3f);     // face the viewer, lean slightly to mouse
+        pv.rotateX((float) Math.toRadians(-6));
+
+        shader.bind();
+        shader.setMat4("uPV", pv);
+        shader.setInt("uTex", 0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, atlasTex);
+
+        // clear depth so the model isn't occluded by the world and self-occludes correctly
+        glDepthMask(true);
+        glClear(GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_DEPTH_TEST);
+        glDisable(GL_BLEND);
+
+        verts.clear();
+        guiPlayerModel(headYaw, headPitch);
+        shader.setVec3("uTint", 1, 1, 1);
+        flushMob();
+
+        for (int slot = 0; slot < Armour.SLOTS; slot++) {
+            ItemStack a = inv.armour[slot];
+            if (a == null) continue;
+            verts.clear();
+            guiArmourPiece(slot, headYaw, headPitch);
+            if (a.id >= Item.IRON_HELMET) shader.setVec3("uTint", 0.82f, 0.82f, 0.86f);
+            else shader.setVec3("uTint", 0.55f, 0.38f, 0.24f);
+            flushMob();
+        }
+
+        shader.setVec3("uTint", 1, 1, 1);
+        glEnable(GL_BLEND);
+    }
+
+    private void guiPlayerModel(float headYaw, float headPitch) {
+        int F = Tiles.PLAYER_FACE, S = Tiles.PLAYER_SKIN, SH = Tiles.PLAYER_SHIRT, P = Tiles.PLAYER_PANTS;
+        box(0, 24, 0, headPitch, headYaw, -4, 0, -4, 8, 8, 8, S, S, F, S, S, S);  // head
+        box(0, 12, 0, 0, 0, -4, 0, -2, 8, 12, 4, SH, SH, SH, SH, SH, SH);          // body
+        box(6, 22, 0, 0, 0, -2, -12, -2, 4, 12, 4, S, S, S, S, S, S);              // right arm
+        box(-6, 22, 0, 0, 0, -2, -12, -2, 4, 12, 4, S, S, S, S, S, S);             // left arm
+        box(-2, 12, 0, 0, 0, -2, -12, -2, 4, 12, 4, P, P, P, P, P, P);             // left leg
+        box(2, 12, 0, 0, 0, -2, -12, -2, 4, 12, 4, P, P, P, P, P, P);              // right leg
+    }
+
+    /** Armour plating (a slightly enlarged box over the relevant body parts), tinted by caller. */
+    private void guiArmourPiece(int slot, float headYaw, float headPitch) {
+        int W = Tiles.WHITE;
+        switch (slot) {
+            case Armour.HELMET ->
+                    box(0, 24, 0, headPitch, headYaw, -4.6f, -0.6f, -4.6f, 9.2f, 9.2f, 9.2f, W, W, W, W, W, W);
+            case Armour.CHESTPLATE -> {
+                box(0, 12, 0, 0, 0, -4.6f, -0.4f, -2.6f, 9.2f, 12.8f, 5.2f, W, W, W, W, W, W);
+                box(6, 22, 0, 0, 0, -2.6f, -4f, -2.6f, 5.2f, 5f, 5.2f, W, W, W, W, W, W);   // shoulders
+                box(-6, 22, 0, 0, 0, -2.6f, -4f, -2.6f, 5.2f, 5f, 5.2f, W, W, W, W, W, W);
+            }
+            case Armour.LEGGINGS -> {
+                box(0, 12, 0, 0, 0, -4.5f, 0f, -2.5f, 9f, 3f, 5f, W, W, W, W, W, W);        // belt
+                box(-2, 12, 0, 0, 0, -2.4f, -7f, -2.4f, 4.8f, 7f, 4.8f, W, W, W, W, W, W);
+                box(2, 12, 0, 0, 0, -2.4f, -7f, -2.4f, 4.8f, 7f, 4.8f, W, W, W, W, W, W);
+            }
+            case Armour.BOOTS -> {
+                box(-2, 12, 0, 0, 0, -2.5f, -12f, -2.5f, 5f, 4.5f, 5f, W, W, W, W, W, W);
+                box(2, 12, 0, 0, 0, -2.5f, -12f, -2.5f, 5f, 4.5f, 5f, W, W, W, W, W, W);
+            }
+        }
+    }
+
+    private static float clampf(float v, float lo, float hi) {
+        return Math.max(lo, Math.min(hi, v));
     }
 
     // ---------- models ----------

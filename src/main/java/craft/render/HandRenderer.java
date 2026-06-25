@@ -90,12 +90,12 @@ public class HandRenderer {
         verts.clear();
 
         // base hand transform (eye space): lower-right, tilted toward centre. The swing
-        // dips the hand down, chops forward, and rolls the arm clockwise on screen.
+        // dips the hand down and chops forward (no roll — a roll makes the arm twist).
         Matrix4f hand = new Matrix4f()
                 .translate(0.46f, -0.42f + arc * -0.18f, -0.72f)
-                .rotateY((float) Math.toRadians(-12 - arc * 14))
-                .rotateX((float) Math.toRadians(arc * 50))
-                .rotateZ((float) Math.toRadians(8 - arc * 30));
+                .rotateY((float) Math.toRadians(-12 + arc * 18))
+                .rotateX((float) Math.toRadians(arc * 55))
+                .rotateZ((float) Math.toRadians(8));
 
         // First person shows only the arm — a single forearm cuboid anchored at the
         // wrist, extending down-right out of frame. (The held item shows in 3rd person.)

@@ -191,7 +191,7 @@ public class ArmRenderer {
             int t = it.isBlock() ? it.block().tileSide : it.icon;
             Matrix4f im = new Matrix4f(hand);
             im.translate(1f, 1f, 1f);
-            im.rotateZ((float) Math.toRadians(20));
+            im.rotateZ((float) Math.toRadians(20 + 180));   // handle into the hand, head up/out
             im.rotateY((float) Math.toRadians(-12));
             im.scale(0.54f);
             sprite(im, t, light);

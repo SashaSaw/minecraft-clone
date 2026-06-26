@@ -192,7 +192,7 @@ public class ArmRenderer {
             Matrix4f im = new Matrix4f(hand);
             im.translate(1f, 1f, 1f);
             im.rotateZ((float) Math.toRadians(20 + 180));   // handle into the hand, head up/out
-            im.rotateY((float) Math.toRadians(-12));
+            im.rotateY((float) Math.toRadians(-12 + 45));   // angled 45 clockwise about Y
             im.scale(-0.54f, 0.54f, 0.54f);                 // mirror across the Y axis
             sprite(im, t, light);
         }

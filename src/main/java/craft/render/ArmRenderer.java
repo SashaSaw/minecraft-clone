@@ -239,9 +239,11 @@ public class ArmRenderer {
         float texel = s / Tiles.TILE_PX;
         float u0 = (tile % Tiles.ATLAS_TILES) * s, v0 = (tile / Tiles.ATLAS_TILES) * s;
         float u1 = u0 + s, v1 = v0 + s;
-        // front (+Z, toward camera) and back (-Z) faces: full icon
+        // front (+Z, toward camera) and back (-Z) faces: full icon, mapped IDENTICALLY (same
+        // texel at each x,y) so the back sits exactly behind the front. Otherwise the back is a
+        // mirror image and shows through the icon's transparent pixels as a doubled/flipped sprite.
         quad(m, light, -8, -8, 0.5f, 16, 0, 0, 0, 16, 0, u0, v1, u1, v0);
-        quad(m, light, 8, -8, -0.5f, -16, 0, 0, 0, 16, 0, u0, v1, u1, v0);
+        quad(m, light, -8, -8, -0.5f, 16, 0, 0, 0, 16, 0, u0, v1, u1, v0);
         // four rims, each sampling a single edge line of the icon
         quad(m, light, -8, 8, 0.5f, 16, 0, 0, 0, 0, -1, u0, v0, u1, v0 + texel);          // top
         quad(m, light, -8, -8, -0.5f, 16, 0, 0, 0, 0, 1, u0, v1 - texel, u1, v1);         // bottom
